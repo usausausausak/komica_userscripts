@@ -1,5 +1,6 @@
 // ==UserScript==
 // @name         Komica NGID
+// @description  NG id and post on komica
 // @namespace    https://github.com/usausausausak
 // @include      http://*.komica.org/*/*
 // @include      https://*.komica.org/*/*

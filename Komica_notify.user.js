@@ -1,5 +1,6 @@
 // ==UserScript==
 // @name         Komica notify
+// @description  Notify new post every 60seconds on komica
 // @namespace    https://github.com/usausausausak
 // @include      http://*.komica.org/*/pixmicat.php?res=*
 // @include      https://*.komica.org/*/pixmicat.php?res=*
