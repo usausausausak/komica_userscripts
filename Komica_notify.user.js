@@ -165,8 +165,8 @@
                     console.log(ex);
                 }
 
-                window.postMessage({ event: "notify-new-post",
-                                     posts: newPostNos
+                window.postMessage({ event: "notify-new-posts",
+                                     posts: Array.from(newPostNos)
                                    } , "*");
             } else {
                 if (resetReadFlag) {
@@ -202,7 +202,7 @@
         reloadButton.innerHTML = `新着 ${NewPost} 件。[再読み込み]`;
     }
 
-    function manualReloadCb(ev) {
+    function manualReload() {
         if (!isLoading()) {
             clearTimeout(Timer);
             ResetRead = true;
@@ -217,7 +217,7 @@
     reloadButton.id = "notify-reload";
     reloadButton.innerHTML = "[再読み込み]";
     reloadButton.className = "text-button";
-    reloadButton.addEventListener("click", manualReloadCb, false);
+    reloadButton.addEventListener("click", manualReload, false);
 
     let container = document.querySelector("#threads");
     block.appendChild(reloadButton);
@@ -230,6 +230,16 @@
         ResetRead = true;
     }
     window.addEventListener("scroll", readPostCb, false);
+
+    // event from other script
+    function fetchNewPostCb(ev) {
+        let event = ev.data;
+        if (event.event === "fetch-new-posts") {
+            manualReload();
+        }
+    }
+
+    window.addEventListener("message", fetchNewPostCb, false);
 
     // start auto reload
     updatePosts();
