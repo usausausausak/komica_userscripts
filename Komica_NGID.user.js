@@ -4,7 +4,7 @@
 // @namespace    https://github.com/usausausausak
 // @include      http://*.komica.org/*/*
 // @include      https://*.komica.org/*/*
-// @version      1
+// @version      1.1.0
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -19,6 +19,8 @@
         .map(v => v.replace(/^ID:/g, "")).filter(v => v.length);
     let ngNos = GM_getValue("ngNoList", "").split(/\n/)
         .map(v => v.replace(/^No./g, "")).filter(v => v.length);
+    let ngWords = GM_getValue("ngWordList", "").split(/\n/)
+        .filter(v => v.length);
 
     function doNgPost(post) {
         if (post.classList.contains("threadpost")) {
@@ -38,16 +40,21 @@
         for (let post of document.querySelectorAll(".post")) {
             let idSpan = post.querySelector(".post-head .id") ||
                 post.querySelector(".post-head .now");
+            let contentBlock = post.querySelector(".quote");
 
             let postNo = post.dataset.no;
             let postId = idSpan.dataset.id ||
                 idSpan.innerHTML.replace(/^.*ID:/, "");
+            let postContent = contentBlock.innerText;
 
             if (ngIds.includes(postId)) {
                 console.log(`NGID ${postId}`);
                 doNgPost(post);
             } else if (ngNos.includes(postNo)) {
                 console.log(`NGNO ${postNo}`);
+                doNgPost(post);
+            } else if (ngWords.some(word => postContent.includes(word))) {
+                console.log(`NGWord`);
                 doNgPost(post);
             } else if (post.classList.contains("ngpost")) {
                 removeNgPost(post);
@@ -116,9 +123,13 @@
     let ngSettingNoInput = document.createElement("textarea");
     ngSettingNoInput.style.height = "10em";
 
+    let ngSettingWordInput = document.createElement("textarea");
+    ngSettingWordInput.style.height = "10em";
+
     function updateSetting() {
         ngSettingIdInput.value = ngIds.map(v => `ID:${v}`).join("\n");
         ngSettingNoInput.value = ngNos.map(v => `No.${v}`).join("\n");
+        ngSettingWordInput.value = ngWords.join("\n");
     }
 
     function saveSettingCb(ev) {
@@ -126,6 +137,8 @@
             .map(v => v.replace(/^ID:/g, "")).filter(v => v.length);
         ngNos = ngSettingNoInput.value.split(/\n/)
             .map(v => v.replace(/^No./g, "")).filter(v => v.length);
+        ngWords = ngSettingWordInput.value.split(/\n/)
+            .filter(v => v.length);
         saveSetting();
     }
 
@@ -134,6 +147,8 @@
             .map(v => `ID:${v}`).join("\n"));
         GM_setValue("ngNoList", ngNos.filter(v => v.length)
             .map(v => `No.${v}`).join("\n"));
+        GM_setValue("ngWordList", ngWords.filter(v => v.length)
+            .join("\n"));
         updateSetting();
         doNgList();
     }
@@ -152,6 +167,8 @@
     ngSettingBlock.appendChild(ngSettingIdInput);
     ngSettingBlock.appendChild(document.createTextNode("NGNO:(no per line)"));
     ngSettingBlock.appendChild(ngSettingNoInput);
+    ngSettingBlock.appendChild(document.createTextNode("NGWord:(word per line)"));
+    ngSettingBlock.appendChild(ngSettingWordInput);
     ngSettingBlock.appendChild(ngSettingSave);
 
     function switchSettingCb(ev) {
