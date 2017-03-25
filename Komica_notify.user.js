@@ -1,15 +1,16 @@
 // ==UserScript==
 // @name         Komica notify
-// @description  Notify new post every 60seconds on komica
 // @namespace    https://github.com/usausausausak
+// @description  Notify new post every 60seconds on komica
 // @include      http://*.komica.org/*/pixmicat.php?res=*
 // @include      https://*.komica.org/*/pixmicat.php?res=*
-// @version      1
+// @version      1.0.1
 // @grant        none
 // ==/UserScript==
 (function (window) {
     const GET_POST_LIST_URL = "./pixmicat.php?mode=module&load=mod_ajax&action=thread&html=true&op=";
-    const PULL_INTERVAL = 60 * 1000; // mircosec
+    const FETCH_TIMEOUT = 30 * 1000;
+    const PULL_INTERVAL = 60 * 1000;
 
     let ThreadNo = document.querySelector(".threadpost").dataset.no;
     let PostNos = new Set();
@@ -41,12 +42,19 @@
             let req = new XMLHttpRequest();
             req.open("GET", GetPostsUrl);
             req.responseType = "json";
+            req.timeout = FETCH_TIMEOUT;
             req.onload = function () {
-                if ((req.readyState === 4) && (req.status === 200)) {
+                if (req.status === 200) {
                     resolve(req.response);
                 } else {
-                    reject(req.response);
+                    reject(req.status);
                 }
+            };
+            req.onerror = function () {
+                reject("error");
+            };
+            req.ontimeout = function () {
+                reject("timeout");
             };
             req.send();
         });
@@ -175,7 +183,7 @@
                 console.log("No new post.")
             }
         } catch (ex) {
-            console.log(`Fail ${ex}, retry at ${PULL_INTERVAL}.`);
+            console.log(`Fail: ${ex}, retry at ${PULL_INTERVAL}.`);
         }
 
         endLoad();
