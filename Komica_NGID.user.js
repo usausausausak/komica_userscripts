@@ -4,7 +4,7 @@
 // @namespace    https://github.com/usausausausak
 // @include      http://*.komica.org/*/*
 // @include      https://*.komica.org/*/*
-// @version      1.1.0
+// @version      1.2.0
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -36,33 +36,29 @@
         post.classList.remove("ngpost");
     }
 
-    function doNgList() {
-        for (let post of document.querySelectorAll(".post")) {
-            let idSpan = post.querySelector(".post-head .id") ||
-                post.querySelector(".post-head .now");
-            let contentBlock = post.querySelector(".quote");
+    function doNgList(post) {
+        let idSpan = post.querySelector(".post-head .id") ||
+            post.querySelector(".post-head .now");
+        let contentBlock = post.querySelector(".quote");
 
-            let postNo = post.dataset.no;
-            let postId = idSpan.dataset.id ||
-                idSpan.innerHTML.replace(/^.*ID:/, "");
-            let postContent = contentBlock.innerText;
+        let postNo = post.dataset.no;
+        let postId = idSpan.dataset.id ||
+            idSpan.innerHTML.replace(/^.*ID:/, "");
+        let postContent = contentBlock.innerText;
 
-            if (ngIds.includes(postId)) {
-                console.log(`NGID ${postId}`);
-                doNgPost(post);
-            } else if (ngNos.includes(postNo)) {
-                console.log(`NGNO ${postNo}`);
-                doNgPost(post);
-            } else if (ngWords.some(word => postContent.includes(word))) {
-                console.log(`NGWord`);
-                doNgPost(post);
-            } else if (post.classList.contains("ngpost")) {
-                removeNgPost(post);
-            }
+        if (ngIds.includes(postId)) {
+            console.log(`NGID ${postId}`);
+            doNgPost(post);
+        } else if (ngNos.includes(postNo)) {
+            console.log(`NGNO ${postNo}`);
+            doNgPost(post);
+        } else if (ngWords.some(word => postContent.includes(word))) {
+            console.log(`NGWord`);
+            doNgPost(post);
+        } else if (post.classList.contains("ngpost")) {
+            removeNgPost(post);
         }
     }
-
-    doNgList();
 
     // add NG button
     function addNgIdCb(ev) {
@@ -88,7 +84,53 @@
         }
     }
 
-    for (let post of document.querySelectorAll(".post")) {
+    // workaround for post expand
+    function doTrackPostExpand(post, tryCount) {
+        let postReplys = post.parentElement
+            .querySelectorAll(".reply:not(.ngid-after)");
+        let replySize = postReplys.length;
+
+        if (!replySize) {
+            if (tryCount) {
+                window.requestAnimationFrame(
+                    () => doTrackPostExpand(post, tryCount - 1));
+            } else {
+                console.log("Reply track timeout.");
+            }
+        } else {
+            console.log(`Reply size tracking: ${replySize}`);
+            postReplys.forEach(handlePost);
+        }
+    }
+
+    function trackPostExpand(post) {
+        let postReplys = post.parentElement.querySelectorAll(".reply");
+        let replySize = postReplys.length;
+        console.log(`Reply size before: ${replySize}`);
+        window.requestAnimationFrame(
+            () => doTrackPostExpand(post, 100));
+    }
+
+    function startTrackThreadExpand(ev) {
+        let element = ev.target;
+        if (!element.classList.contains("-expand-thread")) {
+            return;
+        }
+
+        let post = this.parentElement;
+        trackPostExpand(post);
+    }
+
+    function hookThreadExpand(post) {
+        let expandSpan = post.querySelector(".warn_txt2");
+        if (!expandSpan) {
+            return;
+        }
+
+        expandSpan.addEventListener("click", startTrackThreadExpand, false);
+    }
+
+    function initPost(post) {
         let idSpan = post.querySelector(".post-head .id") ||
             post.querySelector(".post-head .now");
         let delButton = post.querySelector(".post-head .-del-button");
@@ -114,7 +156,22 @@
         let parent = delButton.parentElement;
         parent.insertBefore(ngNoButton, delButton);
         parent.insertBefore(ngIdButton, idSpan.nextSibling);
+
+        if (post.classList.contains("threadpost")) {
+            hookThreadExpand(post);
+        }
     }
+
+    function handlePost(post) {
+        if (!post.classList.contains("ngid-after")) {
+            post.classList.add("ngid-after");
+
+            initPost(post);
+        }
+        doNgList(post);
+    }
+
+    document.querySelectorAll(".post").forEach(handlePost);
 
     // add setting block
     let ngSettingIdInput = document.createElement("textarea");
@@ -150,7 +207,9 @@
         GM_setValue("ngWordList", ngWords.filter(v => v.length)
             .join("\n"));
         updateSetting();
-        doNgList();
+
+        // update posts
+        document.querySelectorAll(".post").forEach(doNgList);
     }
 
     let ngSettingSave = document.createElement("button");
