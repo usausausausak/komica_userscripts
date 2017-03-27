@@ -4,7 +4,7 @@
 // @namespace    https://github.com/usausausausak
 // @include      http://*.komica.org/*/*
 // @include      https://*.komica.org/*/*
-// @version      1.2.0
+// @version      1.2.1
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -84,52 +84,6 @@
         }
     }
 
-    // workaround for post expand
-    function doTrackPostExpand(post, tryCount) {
-        let postReplys = post.parentElement
-            .querySelectorAll(".reply:not(.ngid-after)");
-        let replySize = postReplys.length;
-
-        if (!replySize) {
-            if (tryCount) {
-                window.requestAnimationFrame(
-                    () => doTrackPostExpand(post, tryCount - 1));
-            } else {
-                console.log("Reply track timeout.");
-            }
-        } else {
-            console.log(`Reply size tracking: ${replySize}`);
-            postReplys.forEach(handlePost);
-        }
-    }
-
-    function trackPostExpand(post) {
-        let postReplys = post.parentElement.querySelectorAll(".reply");
-        let replySize = postReplys.length;
-        console.log(`Reply size before: ${replySize}`);
-        window.requestAnimationFrame(
-            () => doTrackPostExpand(post, 100));
-    }
-
-    function startTrackThreadExpand(ev) {
-        let element = ev.target;
-        if (!element.classList.contains("-expand-thread")) {
-            return;
-        }
-
-        let post = this.parentElement;
-        trackPostExpand(post);
-    }
-
-    function hookThreadExpand(post) {
-        let expandSpan = post.querySelector(".warn_txt2");
-        if (!expandSpan) {
-            return;
-        }
-
-        expandSpan.addEventListener("click", startTrackThreadExpand, false);
-    }
-
     function initPost(post) {
         let idSpan = post.querySelector(".post-head .id") ||
             post.querySelector(".post-head .now");
@@ -156,10 +110,6 @@
         let parent = delButton.parentElement;
         parent.insertBefore(ngNoButton, delButton);
         parent.insertBefore(ngIdButton, idSpan.nextSibling);
-
-        if (post.classList.contains("threadpost")) {
-            hookThreadExpand(post);
-        }
     }
 
     function handlePost(post) {
@@ -172,6 +122,26 @@
     }
 
     document.querySelectorAll(".post").forEach(handlePost);
+
+    // observe thread expand
+    let threadObserver = new MutationObserver(function (records) {
+        let postReplys = records.reduce((total, record) => {
+            for (let node of record.addedNodes) {
+                if ((node.classList) &&
+                    (node.classList.contains("reply"))) {
+                    total.push(node);
+                }
+            }
+            return total;
+        } , []);
+        let replySize = postReplys.length;
+        console.log(`Reply size change: ${replySize}`);
+        postReplys.forEach(post => handlePost(post));
+    });
+
+    document.querySelectorAll(".thread").forEach(thread => {
+        threadObserver.observe(thread, { childList: true });
+    });
 
     // add setting block
     let ngSettingIdInput = document.createElement("textarea");
