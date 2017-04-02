@@ -4,7 +4,7 @@
 // @namespace    https://github.com/usausausausak
 // @include      http://*.komica.org/*/*
 // @include      https://*.komica.org/*/*
-// @version      1.2.1
+// @version      1.3.1
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
