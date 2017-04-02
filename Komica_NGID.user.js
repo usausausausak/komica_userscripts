@@ -10,10 +10,33 @@
 // @grant        GM_addStyle
 // ==/UserScript==
 (function (window) {
-    GM_addStyle(`.ngthread > .reply, .ngpost > *:not(.post-head) {
-                   display: none;
-                 }
-                 .ngthread > div, .ngpost { opacity: 0.3; }`);
+    GM_addStyle(`
+        .ngid-ngthread > .reply, .ngid-ngpost > *:not(.post-head) {
+            display: none;
+        }
+
+        .ngid-ngpost {
+            opacity: 0.3;
+        }
+
+        .ngid-button > div {
+            display: inline-block;
+            visibility: hidden;
+            position: absolute;
+            padding: 5px 10px;
+            background-color: rgba(238, 170, 136, 0.9);
+            border-radius: 5px;
+            overflow: hidden;
+            white-space: nowrap;
+            max-height: 0px;
+            transition: max-height 200ms;
+        }
+
+        .ngid-button:hover > div {
+            visibility: visible;
+            max-height: 200px;
+        }
+    `);
 
     let ngIds = GM_getValue("ngIdList", "").split(/\n/)
         .map(v => v.replace(/^ID:/g, "")).filter(v => v.length);
@@ -24,16 +47,16 @@
 
     function doNgPost(post) {
         if (post.classList.contains("threadpost")) {
-            post.parentElement.classList.add("ngthread");
+            post.parentElement.classList.add("ngid-ngthread");
         }
-        post.classList.add("ngpost");
+        post.classList.add("ngid-ngpost");
     }
 
     function removeNgPost(post) {
         if (post.classList.contains("threadpost")) {
-            post.parentElement.classList.remove("ngthread");
+            post.parentElement.classList.remove("ngid-ngthread");
         }
-        post.classList.remove("ngpost");
+        post.classList.remove("ngid-ngpost");
     }
 
     function doNgList(post) {
@@ -55,7 +78,7 @@
         } else if (ngWords.some(word => postContent.includes(word))) {
             console.log(`NGWord`);
             doNgPost(post);
-        } else if (post.classList.contains("ngpost")) {
+        } else if (post.classList.contains("ngid-ngpost")) {
             removeNgPost(post);
         }
     }
@@ -71,9 +94,9 @@
     }
 
     function addNgNoCb(ev) {
-        let isNgPost = this.parentElement.parentElement
-            .classList.contains("ngpost");
         let no = this.dataset.no;
+        let isNgPost = document.querySelector(`.post[data-no="${no}"]`)
+            .classList.contains("ngid-ngpost");
         if (isNgPost) {
             ngNos = ngNos.filter(v => v !== no);
             saveSetting();
@@ -87,35 +110,40 @@
     function initPost(post) {
         let idSpan = post.querySelector(".post-head .id") ||
             post.querySelector(".post-head .now");
-        let delButton = post.querySelector(".post-head .-del-button");
 
         let postNo = post.dataset.no;
         let postId = idSpan.dataset.id ||
             idSpan.innerHTML.replace(/^.*ID:/, "");
 
-        let ngIdButton = document.createElement("span");
+        let ngButton = document.createElement("span");
+        ngButton.className = "text-button ngid-button";
+
+        let delButton = post.querySelector(".post-head .-del-button");
+        let parent = delButton.parentElement;
+        parent.insertBefore(ngButton, delButton);
+
+        let ngButtonContainer = document.createElement("div");
+        ngButton.appendChild(ngButtonContainer);
+        ngButton.appendChild(document.createTextNode("NG"));
+
+        let ngIdButton = document.createElement("div");
         ngIdButton.className = "text-button";
         ngIdButton.dataset.id = postId;
-        ngIdButton.title = `NG this id: ${postId}`;
-        ngIdButton.innerHTML = "NGID";
+        ngIdButton.innerHTML = `NGID: ${postId}`;
         ngIdButton.addEventListener("click", addNgIdCb, false);
 
-        let ngNoButton = document.createElement("span");
+        let ngNoButton = document.createElement("div");
         ngNoButton.className = "text-button";
         ngNoButton.dataset.no = postNo;
-        ngNoButton.title = `NG this post: No.${postNo}`;
-        ngNoButton.innerHTML = "NG";
+        ngNoButton.innerHTML = `Toggle NG post: No.${postNo}`;
         ngNoButton.addEventListener("click", addNgNoCb, false);
 
-        let parent = delButton.parentElement;
-        parent.insertBefore(ngNoButton, delButton);
-        parent.insertBefore(ngIdButton, idSpan.nextSibling);
+        ngButtonContainer.appendChild(ngNoButton);
+        ngButtonContainer.appendChild(ngIdButton);
     }
 
     function handlePost(post) {
-        if (!post.classList.contains("ngid-after")) {
-            post.classList.add("ngid-after");
-
+        if (!post.querySelector(".ngid-button")) {
             initPost(post);
         }
         doNgList(post);
