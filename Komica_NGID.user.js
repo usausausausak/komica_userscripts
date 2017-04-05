@@ -45,11 +45,12 @@
     let ngWords = GM_getValue("ngWordList", "").split(/\n/)
         .filter(v => v.length);
 
-    function doNgPost(post) {
+    function addNgPost(post) {
         if (post.classList.contains("threadpost")) {
             post.parentElement.classList.add("ngid-ngthread");
         }
         post.classList.add("ngid-ngpost");
+        post.removeAttribute("data-ngid-clean");
     }
 
     function removeNgPost(post) {
@@ -57,30 +58,38 @@
             post.parentElement.classList.remove("ngid-ngthread");
         }
         post.classList.remove("ngid-ngpost");
+        post.removeAttribute("data-ngid-clean");
     }
 
-    function doNgList(post) {
-        let idSpan = post.querySelector(".post-head .id") ||
-            post.querySelector(".post-head .now");
-        let contentBlock = post.querySelector(".quote");
+    function refreshNgList() {
+        // mark all posts in ng list
+        document.querySelectorAll(".ngid-ngpost").forEach(
+            post => post.dataset.ngidClean = true);
 
-        let postNo = post.dataset.no;
-        let postId = idSpan.dataset.id ||
-            idSpan.innerHTML.replace(/^.*ID:/, "");
-        let postContent = contentBlock.innerText;
+        ngIds.forEach(id => {
+            try {
+                document.querySelectorAll(`.post[data-ngid-id='${id}']`)
+                    .forEach(addNgPost);
+            } catch (ex) {
+                console.log(ex);
+            }
+        });
 
-        if (ngIds.includes(postId)) {
-            console.log(`NGID ${postId}`);
-            doNgPost(post);
-        } else if (ngNos.includes(postNo)) {
-            console.log(`NGNO ${postNo}`);
-            doNgPost(post);
-        } else if (ngWords.some(word => postContent.includes(word))) {
-            console.log(`NGWord`);
-            doNgPost(post);
-        } else if (post.classList.contains("ngid-ngpost")) {
-            removeNgPost(post);
-        }
+        ngNos.forEach(no => {
+            try {
+                document.querySelectorAll(`.post[data-no='${no}']`)
+                    .forEach(addNgPost);
+            } catch (ex) {
+                console.log(ex);
+            }
+        });
+
+        document.querySelectorAll(".post[data-ngid-contains-word=true]")
+            .forEach(addNgPost);
+
+        // remove posts form ng list if it has clean flag
+        document.querySelectorAll("[data-ngid-clean=true]")
+            .forEach(removeNgPost);
     }
 
     // add NG button
@@ -94,26 +103,46 @@
     }
 
     function addNgNoCb(ev) {
-        let no = this.dataset.no;
-        let isNgPost = document.querySelector(`.post[data-no="${no}"]`)
-            .classList.contains("ngid-ngpost");
-        if (isNgPost) {
-            ngNos = ngNos.filter(v => v !== no);
-            saveSetting();
-        } else if (!ngNos.includes(no)) {
-            console.log(`add NGNO ${no}`);
-            ngNos.push(no);
-            saveSetting();
+        try {
+            let no = this.dataset.no;
+            let isNgPost = document.querySelector(`.post[data-no='${no}']`)
+                .classList.contains("ngid-ngpost");
+            if (isNgPost) {
+                ngNos = ngNos.filter(v => v !== no);
+                saveSetting();
+            } else if (!ngNos.includes(no)) {
+                console.log(`add NGNO ${no}`);
+                ngNos.push(no);
+                saveSetting();
+            }
+        } catch(ex) {
+            console.log(ex);
         }
     }
 
+    function markPostContent(post) {
+        let contentBlock = post.querySelector(".quote");
+        let postContent = contentBlock.innerText;
+        post.dataset.ngidContainsWord = ngWords.some(
+            word => postContent.includes(word));
+    }
+
     function initPost(post) {
-        let idSpan = post.querySelector(".post-head .id") ||
+        let idBlock = post.querySelector(".post-head .id") ||
             post.querySelector(".post-head .now");
 
         let postNo = post.dataset.no;
-        let postId = idSpan.dataset.id ||
-            idSpan.innerHTML.replace(/^.*ID:/, "");
+        let postId = idBlock.dataset.id ||
+            idBlock.innerHTML.replace(/^.*ID:/, "");
+
+        // marker
+        post.dataset.ngidId = postId;
+        markPostContent(post);
+
+        // create ng button if necessary
+        if (post.querySelector(".ngid-button")) {
+            return;
+        }
 
         let ngButton = document.createElement("span");
         ngButton.className = "text-button ngid-button";
@@ -142,14 +171,8 @@
         ngButtonContainer.appendChild(ngIdButton);
     }
 
-    function handlePost(post) {
-        if (!post.querySelector(".ngid-button")) {
-            initPost(post);
-        }
-        doNgList(post);
-    }
-
-    document.querySelectorAll(".post").forEach(handlePost);
+    document.querySelectorAll(".post").forEach(initPost);
+    refreshNgList();
 
     // observe thread expand
     let threadObserver = new MutationObserver(function (records) {
@@ -164,7 +187,9 @@
         } , []);
         let replySize = postReplys.length;
         console.log(`Reply size change: ${replySize}`);
-        postReplys.forEach(post => handlePost(post));
+
+        postReplys.forEach(initPost);
+        refreshNgList();
     });
 
     document.querySelectorAll(".thread").forEach(thread => {
@@ -206,8 +231,10 @@
             .join("\n"));
         updateSetting();
 
-        // update posts
-        document.querySelectorAll(".post").forEach(doNgList);
+        // remark posts contains ng word
+        document.querySelectorAll(".post").forEach(markPostContent);
+
+        refreshNgList();
     }
 
     let ngSettingSave = document.createElement("button");
