@@ -4,12 +4,109 @@
 // @namespace    https://github.com/usausausausak
 // @include      http://*.komica.org/*/*
 // @include      https://*.komica.org/*/*
-// @version      1.3.2
+// @version      1.4
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
 // ==/UserScript==
 (function (window) {
+    let selfId = "[Komica_NGID]";
+    let selfSetting = (function () {
+        let tablePrefix = (function (loc) {
+            let boardName = loc.pathname.split(/\//).slice(0, -1).join("/");
+            return loc.host + boardName;
+        })(document.location);
+
+        let fallbackList = {
+            ngIds: [ "ngIdList", list => list.map(v => v.replace(/^ID:/g, ""))],
+            ngNos: [ "ngNoList", list => list.map(v => v.replace(/^No./g, ""))],
+            ngWords: [ "ngWordList", list => list ]
+        };
+
+        function jsonReplacer(key, value) {
+            if (key === "creationTime") {
+                return new Date(value);
+            } else {
+                return value;
+            }
+        }
+
+        let lists = { ngIds: [], ngNos: [], ngWords: [] };
+        for (let key of Object.keys(lists)) {
+            let tableName = `${tablePrefix}/${key}`;
+            try {
+                let list = JSON.parse(GM_getValue(tableName, ""),
+                                      jsonReplacer);
+                lists[key] = list;
+            } catch (ex) {
+                // fallback will remove in future
+                console.warn(selfId, `table "${tableName}" not found, use fallback.`);
+
+                let [fbName, mapper] = fallbackList[key];
+                let list = mapper(GM_getValue(fbName, "").split(/\n/));
+                lists[key] = list.filter(v => v.length)
+                    .map(v => { return { value: v }; });
+            }
+            console.info(selfId, `${key} have ${lists[key].length} items.`);
+        }
+
+        function addNg(key, value) {
+            if (!Array.isArray(lists[key])) {
+                throw new Error("Invalid key");
+            } else if (lists[key].some(v => value === v.value)) {
+                return false;
+            }
+
+            lists[key].push({ value: value, creationTime: new Date() });
+            return true;
+        }
+
+        function removeNg(key, value) {
+            if (!Array.isArray(lists[key])) {
+                throw new Error("Invalid key");
+            }
+            lists[key] = lists[key].filter(v => v.value !== value);
+            return true;
+        }
+
+        function clearNg(key, predicate = null) {
+            if (!Array.isArray(lists[key])) {
+                throw new Error("Invalid key");
+            }
+
+            if (typeof predicate === "function") {
+                lists[key] = lists[key].filter(predicate)
+            } else {
+                lists[key] = [];
+            }
+        }
+
+        function saveNg(key) {
+            if (!Array.isArray(lists[key])) {
+                throw new Error("Invalid key");
+            }
+
+            let tableName = `${tablePrefix}/${key}`;
+            try {
+                let jsonStr = JSON.stringify(lists[key]);
+                GM_setValue(tableName, jsonStr);
+            } catch (ex) {
+                console.error(selfId, ex);
+            }
+        }
+
+        return {
+            get ngIds() { return lists.ngIds.map(v => v.value); },
+            get ngNos() { return lists.ngNos.map(v => v.value); },
+            get ngWords() { return lists.ngWords.map(v => v.value); },
+            addNg: addNg,
+            removeNg: removeNg,
+            clearNg: clearNg,
+            saveNg: saveNg,
+            save() { Object.keys(lists).forEach(saveNg); }
+        };
+    })();
+
     GM_addStyle(`
         .ngid-ngthread > .reply,
         .ngid-ngpost > *:not(.post-head),
@@ -41,13 +138,6 @@
         }
     `);
 
-    let ngIds = GM_getValue("ngIdList", "").split(/\n/)
-        .map(v => v.replace(/^ID:/g, "")).filter(v => v.length);
-    let ngNos = GM_getValue("ngNoList", "").split(/\n/)
-        .map(v => v.replace(/^No./g, "")).filter(v => v.length);
-    let ngWords = GM_getValue("ngWordList", "").split(/\n/)
-        .filter(v => v.length);
-
     function addNgPost(post) {
         if (post.classList.contains("threadpost")) {
             post.parentElement.classList.add("ngid-ngthread");
@@ -69,7 +159,7 @@
         document.querySelectorAll(".ngid-ngpost").forEach(
             post => post.dataset.ngidClean = true);
 
-        ngIds.forEach(id => {
+        selfSetting.ngIds.forEach(id => {
             try {
                 document.querySelectorAll(`.post[data-ngid-id='${id}']`)
                     .forEach(addNgPost);
@@ -78,7 +168,7 @@
             }
         });
 
-        ngNos.forEach(no => {
+        selfSetting.ngNos.forEach(no => {
             try {
                 document.querySelectorAll(`.post[data-no='${no}']`)
                     .forEach(addNgPost);
@@ -98,35 +188,27 @@
     // add NG button
     function addNgIdCb(ev) {
         let id = this.dataset.id;
-        if (!ngIds.includes(id)) {
+        if (selfSetting.addNg("ngIds", id)) {
             console.log(`add NGID ${id}`);
-            ngIds.push(id);
             saveSetting();
         }
     }
 
     function addNgNoCb(ev) {
-        try {
-            let no = this.dataset.no;
-            let isNgPost = document.querySelector(`.post[data-no='${no}']`)
-                .classList.contains("ngid-ngpost");
-            if (isNgPost) {
-                ngNos = ngNos.filter(v => v !== no);
-                saveSetting();
-            } else if (!ngNos.includes(no)) {
-                console.log(`add NGNO ${no}`);
-                ngNos.push(no);
-                saveSetting();
-            }
-        } catch(ex) {
-            console.log(ex);
+        let no = this.dataset.no;
+        if (selfSetting.addNg("ngNos", no)) {
+            console.log(`add NGNO ${no}`);
+        } else {
+            console.log(`remove NGNO ${no}`);
+            selfSetting.removeNg("ngNos", no);
         }
+        saveSetting();
     }
 
     function markPostContent(post) {
         let contentBlock = post.querySelector(".quote");
         let postContent = contentBlock.innerText;
-        post.dataset.ngidContainsWord = ngWords.some(
+        post.dataset.ngidContainsWord = selfSetting.ngWords.some(
             word => postContent.includes(word));
     }
 
@@ -210,28 +292,41 @@
     ngSettingWordInput.style.height = "10em";
 
     function updateSetting() {
-        ngSettingIdInput.value = ngIds.map(v => `ID:${v}`).join("\n");
-        ngSettingNoInput.value = ngNos.map(v => `No.${v}`).join("\n");
-        ngSettingWordInput.value = ngWords.join("\n");
+        ngSettingIdInput.value = selfSetting.ngIds
+            .map(v => `ID:${v}`).join("\n");
+        ngSettingNoInput.value = selfSetting.ngNos
+            .map(v => `No.${v}`).join("\n");
+        ngSettingWordInput.value = selfSetting.ngWords.join("\n");
     }
 
     function saveSettingCb(ev) {
-        ngIds = ngSettingIdInput.value.split(/\n/)
-            .map(v => v.replace(/^ID:/g, "")).filter(v => v.length);
-        ngNos = ngSettingNoInput.value.split(/\n/)
-            .map(v => v.replace(/^No./g, "")).filter(v => v.length);
-        ngWords = ngSettingWordInput.value.split(/\n/)
-            .filter(v => v.length);
+        // TODO: don't update creation time
+        selfSetting.clearNg("ngIds");
+        selfSetting.clearNg("ngNos");
+        selfSetting.clearNg("ngWords");
+
+        let saveList = {
+            ngIds: [ ngSettingIdInput, v => v.replace(/^ID:/g, "")],
+            ngNos: [ ngSettingNoInput, v => v.replace(/^No./g, "")],
+            ngWords: [ ngSettingWordInput, v => v ]
+        };
+
+        for (let key of Object.keys(saveList)) {
+            let [field, mapper] = saveList[key];
+            let inputs = field.value.split(/\n/);
+            for (let input of inputs) {
+                input = mapper(input);
+                if (input.length > 0) {
+                    selfSetting.addNg(key, input);
+                }
+            }
+        }
+
         saveSetting();
     }
 
     function saveSetting() {
-        GM_setValue("ngIdList", ngIds.filter(v => v.length)
-            .map(v => `ID:${v}`).join("\n"));
-        GM_setValue("ngNoList", ngNos.filter(v => v.length)
-            .map(v => `No.${v}`).join("\n"));
-        GM_setValue("ngWordList", ngWords.filter(v => v.length)
-            .join("\n"));
+        selfSetting.save();
         updateSetting();
 
         // remark posts contains ng word
