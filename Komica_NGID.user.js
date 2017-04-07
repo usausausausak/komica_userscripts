@@ -4,14 +4,17 @@
 // @namespace    https://github.com/usausausausak
 // @include      http://*.komica.org/*/*
 // @include      https://*.komica.org/*/*
-// @version      1.3.1
+// @version      1.3.2
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
 // ==/UserScript==
 (function (window) {
     GM_addStyle(`
-        .ngid-ngthread > .reply, .ngid-ngpost > *:not(.post-head) {
+        .ngid-ngthread > .reply,
+        .ngid-ngpost > *:not(.post-head),
+        .ngid-ngpost > .post-head > .title,
+        .ngid-ngpost > .post-head > .name {
             display: none;
         }
 
