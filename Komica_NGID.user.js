@@ -4,7 +4,7 @@
 // @namespace    https://github.com/usausausausak
 // @include      http://*.komica.org/*/*
 // @include      https://*.komica.org/*/*
-// @version      1.4
+// @version      1.4.1
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -143,7 +143,6 @@
             post.parentElement.classList.add("ngid-ngthread");
         }
         post.classList.add("ngid-ngpost");
-        post.removeAttribute("data-ngid-clean");
     }
 
     function removeNgPost(post) {
@@ -151,38 +150,19 @@
             post.parentElement.classList.remove("ngid-ngthread");
         }
         post.classList.remove("ngid-ngpost");
-        post.removeAttribute("data-ngid-clean");
     }
 
     function refreshNgList() {
-        // mark all posts in ng list
-        document.querySelectorAll(".ngid-ngpost").forEach(
-            post => post.dataset.ngidClean = true);
-
-        selfSetting.ngIds.forEach(id => {
-            try {
-                document.querySelectorAll(`.post[data-ngid-id='${id}']`)
-                    .forEach(addNgPost);
-            } catch (ex) {
-                console.log(ex);
+        document.querySelectorAll(".post").forEach(post => {
+            let needNg = post.dataset.ngidContainsWord === "true" ||
+                         selfSetting.ngIds.includes(post.dataset.ngidId) ||
+                         selfSetting.ngNos.includes(post.dataset.no);
+            if (needNg) {
+                addNgPost(post);
+            } else {
+                removeNgPost(post);
             }
         });
-
-        selfSetting.ngNos.forEach(no => {
-            try {
-                document.querySelectorAll(`.post[data-no='${no}']`)
-                    .forEach(addNgPost);
-            } catch (ex) {
-                console.log(ex);
-            }
-        });
-
-        document.querySelectorAll(".post[data-ngid-contains-word=true]")
-            .forEach(addNgPost);
-
-        // remove posts form ng list if it has clean flag
-        document.querySelectorAll("[data-ngid-clean=true]")
-            .forEach(removeNgPost);
     }
 
     // add NG button
