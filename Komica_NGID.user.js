@@ -4,7 +4,7 @@
 // @namespace    https://github.com/usausausausak
 // @include      http://*.komica.org/*/*
 // @include      https://*.komica.org/*/*
-// @version      1.4.1
+// @version      1.5.0
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -12,6 +12,28 @@
 (function (window) {
     let selfId = "[Komica_NGID]";
     let selfSetting = (function () {
+        let eventListener = { onadd: [], onremove: [], onclear: [], };
+
+        function addEventListener(name, cb) {
+            if (!eventListener[name]) {
+                // ignore unknown event
+                return;
+            }
+            if (typeof cb === "function") {
+                eventListener[name].push(cb);
+            } else {
+                console.warn(selfId, "event listener not a function");
+            }
+        }
+
+        function emitEvent(name, ...args) {
+            try {
+                eventListener[name].forEach(cb => cb(...args));
+            } catch (ex) {
+                console.error(selfId, ex);
+            }
+        }
+
         let tablePrefix = (function (loc) {
             let boardName = loc.pathname.split(/\//).slice(0, -1).join("/");
             return loc.host + boardName;
@@ -50,6 +72,24 @@
             console.info(selfId, `${key} have ${lists[key].length} items.`);
         }
 
+        function saveNg(key) {
+            let tableName = `${tablePrefix}/${key}`;
+            try {
+                let jsonStr = JSON.stringify(lists[key]);
+                GM_setValue(tableName, jsonStr);
+            } catch (ex) {
+                console.error(selfId, ex);
+            }
+        }
+
+        function findNg(key, value) {
+            if (!Array.isArray(lists[key])) {
+                throw new Error("Invalid key");
+            }
+
+            return lists[key].find(v => v.value === value);
+        }
+
         function addNg(key, value) {
             if (!Array.isArray(lists[key])) {
                 throw new Error("Invalid key");
@@ -58,6 +98,9 @@
             }
 
             lists[key].push({ value: value, creationTime: new Date() });
+            saveNg(key);
+
+            emitEvent("onadd", key, value);
             return true;
         }
 
@@ -65,7 +108,11 @@
             if (!Array.isArray(lists[key])) {
                 throw new Error("Invalid key");
             }
+
             lists[key] = lists[key].filter(v => v.value !== value);
+            saveNg(key);
+
+            emitEvent("onremove", key, value);
             return true;
         }
 
@@ -79,34 +126,363 @@
             } else {
                 lists[key] = [];
             }
-        }
+            saveNg(key);
 
-        function saveNg(key) {
-            if (!Array.isArray(lists[key])) {
-                throw new Error("Invalid key");
-            }
-
-            let tableName = `${tablePrefix}/${key}`;
-            try {
-                let jsonStr = JSON.stringify(lists[key]);
-                GM_setValue(tableName, jsonStr);
-            } catch (ex) {
-                console.error(selfId, ex);
-            }
+            emitEvent("onclear", key);
         }
 
         return {
             get ngIds() { return lists.ngIds.map(v => v.value); },
             get ngNos() { return lists.ngNos.map(v => v.value); },
             get ngWords() { return lists.ngWords.map(v => v.value); },
-            addNg: addNg,
-            removeNg: removeNg,
-            clearNg: clearNg,
-            saveNg: saveNg,
-            save() { Object.keys(lists).forEach(saveNg); }
+            findNg, addNg, removeNg, clearNg,
+            on(eventName, cb) { addEventListener(`on${eventName}`, cb); },
         };
     })();
 
+    // create setting panel
+    (function (setting) {
+        let tabBox = (function (ns) {
+            let eventListener = { onswitch: [] };
+
+            function addEventListener(name, cb) {
+                if (!eventListener[name]) {
+                    // ignore unknown event
+                    return;
+                }
+                if (typeof cb === "function") {
+                    eventListener[name].push(cb);
+                } else {
+                    console.warn(selfId, "event listener not a function");
+                }
+            }
+
+            function emitEvent(name, ...args) {
+                try {
+                    eventListener[name].forEach(cb => cb(...args));
+                } catch (ex) {
+                    console.error(selfId, ex);
+                }
+            }
+
+            let tabBox = document.createElement("div");
+            tabBox.className = `${ns}-tabbox-header`;
+            let pageBox = document.createElement("div");
+            pageBox.className = `${ns}-tabbox-container`;
+
+            let pages = [];
+            let currentSelected = -1;
+
+            function addPage(title) {
+                let index = pages.length;
+
+                let page = document.createElement("div");
+                page.className = `${ns}-tabbox-page`;
+                pageBox.appendChild(page);
+
+                let tab = document.createElement("div");
+                tab.className = `${ns}-tabbox-tab`;
+                tab.innerHTML = title;
+                tab.addEventListener("click", () => switchTab(index), false);
+                tabBox.appendChild(tab);
+
+                pages.push({ page, tab });
+                return page;
+            }
+
+            function getPage(index) {
+                if ((index < 0) || (index >= pages.length)) {
+                    console.error(selfId, `invalid tab index: ${index}`);
+                    return null;
+                }
+
+                return pages[index].page;
+            }
+
+            function switchTab(index) {
+                if ((index < 0) || (index >= pages.length)) {
+                    console.error(selfId, `invalid tab index: ${index}`);
+                    return;
+                } else if (currentSelected === index) {
+                    return;
+                }
+
+                let prevIndex = currentSelected;
+                let { page, tab } = pages[index];
+
+                // emit before show to make time to render
+                currentSelected = index;
+                emitEvent("onswitch", index, page);
+
+                // hide current tab
+                if (prevIndex >= 0) {
+                    // hide current tab
+                    let { page, tab } = pages[prevIndex];
+                    tab.classList.remove(`${ns}-tabbox-selected`);
+                    page.classList.remove(`${ns}-tabbox-selected`);
+                }
+
+                tab.classList.add(`${ns}-tabbox-selected`);
+                page.classList.add(`${ns}-tabbox-selected`);
+            }
+
+            function getCurrentPage() {
+                if ((currentSelected < 0) || (currentSelected >= pages.length)) {
+                    return null;
+                } else {
+                    return pages[currentSelected].page;
+                }
+            }
+
+            return {
+                get currentSelected() { return currentSelected; },
+                set currentSelected(index) { switchTab(index); },
+                getCurrentPage,
+                addPage, getPage,
+                appendTo(parent) {
+                    parent.appendChild(tabBox);
+                    parent.appendChild(pageBox);
+                },
+                on(eventName, cb) { addEventListener(`on${eventName}`, cb); },
+            };
+        })("ngid");
+
+        let ngLists = [
+            {
+                title: "NGID", key: "ngIds", prefix: "ID:",
+                replacer(value) {
+                    value = value.replace(/^ID:/, "");
+                    return value;
+                },
+            },
+            {
+                title: "NGNo", key: "ngNos", prefix: "No.",
+                replacer(value) {
+                    value = value.replace(/^No./, "");
+                    if (value.match(/\D/)) {
+                        return "";
+                    }
+                    return value;
+                },
+            },
+            {
+                title: "NGWord", key: "ngWords", prefix: "",
+                replacer(value) { return value; },
+            },
+        ];
+        ngLists.forEach(({ title }) => tabBox.addPage(title));
+
+        function getCurrentListData() {
+            let currentSelected = tabBox.currentSelected;
+            return (currentSelected < 0) ? null : ngLists[currentSelected];
+        }
+
+        function removeItemCb(ev) {
+            let listData = getCurrentListData();
+            if (listData === null) {
+                return;
+            }
+
+            let button = ev.target;
+            setting.removeNg(listData.key, button.dataset.value);
+        }
+
+        function createListitem(value, prefix = "") {
+            let view = document.createElement("div");
+            view.className = "ngid-listitem";
+
+            let dataBlock = document.createElement("span");
+            dataBlock.innerHTML = `${prefix}${value}`;
+            view.appendChild(dataBlock);
+
+            let delButton = document.createElement("span");
+            delButton.className = "text-button";
+            delButton.innerHTML = "Delete";
+            delButton.dataset.value = value;
+            delButton.addEventListener("click", removeItemCb, false);
+            view.appendChild(delButton);
+            return view;
+        }
+
+        function createInputField(placeholder, replacer) {
+            let view = document.createElement("div");
+            view.className = "ngid-inputfield";
+
+            let textField = document.createElement("input");
+            textField.placeholder = placeholder;
+            view.appendChild(textField);
+
+            let addButton = document.createElement("button");
+            addButton.innerHTML = "Add";
+            addButton.addEventListener("click",
+                ev => {
+                    let listData = getCurrentListData();
+                    if (listData === null) {
+                        return;
+                    }
+
+                    let value = replacer(textField.value).trim();
+                    if (value !== "") {
+                        setting.addNg(listData.key, value);
+                        textField.value = "";
+                    }
+                    textField.focus();
+                }, false);
+            view.appendChild(addButton);
+            return view;
+        }
+
+        function renderList(root, listData) {
+            let { title, key, prefix, replacer } = listData;
+
+            console.log(selfId, `render list of ${key}`)
+
+            // remove all child
+            while (root.lastChild) {
+                root.removeChild(root.lastChild);
+            }
+
+            let placeholder = `Add a ${title}`;
+            let inputField = createInputField(placeholder, replacer);
+            root.appendChild(inputField);
+
+            let lists = setting[key];
+            let items = lists.map(data => createListitem(data, prefix));
+            items.reverse();
+            items.forEach(item => root.appendChild(item));
+        }
+
+        tabBox.on("switch",
+                  (pageIdx, root) => renderList(root, ngLists[pageIdx]));
+
+        // rerender current list if it is openning
+        function renderCurrentListCb(key) {
+            let listData = getCurrentListData();
+            if ((listData !== null) && (listData.key === key)) {
+                let root = tabBox.getCurrentPage();
+                renderList(root, listData);
+            }
+        }
+
+        setting.on("add", renderCurrentListCb);
+        setting.on("remove", renderCurrentListCb);
+        setting.on("clear", renderCurrentListCb);
+
+        GM_addStyle(`
+            .ngid-dialog {
+                visibility: hidden;
+                position: fixed;
+                top: -10px;
+                z-index: 1;
+                opacity: 0;
+                display: flex;
+                flex-direction: column;
+                width: 40%;
+                height: 50%;
+                padding: 15px 20px;
+                margin: 0 30%;
+                border-radius: 5px;
+                box-shadow: 0 0 10px #000;
+                background-color: #F0E0D6;
+                transition: top 100ms, visibility 100ms, opacity 100ms;
+            }
+
+            .ngid-dialog-show {
+                visibility: visible;
+                opacity: 1;
+                top: 30px;
+            }
+
+            .ngid-tabbox-tab {
+                cursor: pointer;
+                display: inline-block;
+                width: 10em;
+                padding: 3px 5px;
+                margin-right: 3px;
+                border: 1px solid #FFFFEE;
+                border-bottom-width: 0;
+            }
+
+            .ngid-tabbox-tab:not(.ngid-tabbox-selected):hover {
+                background-color: #EEAA88;
+            }
+
+            .ngid-tabbox-tab.ngid-tabbox-selected {
+                background-color: #FFFFEE;
+                color: #800000;
+                font-weight: bold;
+            }
+
+            .ngid-tabbox-container {
+                flex: 1;
+                overflow-y: scroll;
+                border: 1px solid #FFFFEE;
+                background-color: #FFFFEE;
+            }
+
+            .ngid-tabbox-page {
+                display: none;
+                flex-direction: column;
+                max-height: 100%;
+                margin: 0 10px;
+            }
+
+            .ngid-tabbox-page.ngid-tabbox-selected {
+                display: flex;
+            }
+
+            .ngid-listitem {
+                cursor: pointer;
+                display: flex;
+                justify-content: space-between;
+                padding: 5px 10px;
+                margin: 2px 0;
+            }
+
+            .ngid-listitem:hover {
+                background-color: #EEAA88;
+            }
+
+            .ngid-inputfield {
+                display: flex;
+                justify-content: center;
+                padding: 3px 0;
+                border-bottom: 1px solid #000;
+            }
+        `);
+
+        function toggleDialog() {
+            dialog.classList.toggle("ngid-dialog-show");
+            if (dialog.classList.contains("ngid-dialog-show")) {
+                tabBox.currentSelected = 0;
+            }
+        }
+
+        let dialog = document.createElement("div");
+        dialog.id = "ngid-setting-dialog";
+        dialog.className = "ngid-dialog";
+        tabBox.appendTo(dialog);
+
+        let closeBut = document.createElement("button");
+        closeBut.style.cssText = "align-self: center; margin-top: 5px";
+        closeBut.innerHTML = "Close";
+        closeBut.addEventListener("click", toggleDialog, false);
+        dialog.appendChild(closeBut);
+
+        document.body.insertBefore(dialog, document.body.firstChild);
+
+        let toggleButton = document.createElement("a");
+        toggleButton.className = "text-button";
+        toggleButton.innerHTML = "NGID";
+        toggleButton.addEventListener("click", toggleDialog, false);
+
+        let toplink = document.querySelector("#toplink");
+        toplink.appendChild(document.createTextNode(" ["));
+        toplink.appendChild(toggleButton);
+        toplink.appendChild(document.createTextNode("]"));
+    }(selfSetting));
+
+    // main
     GM_addStyle(`
         .ngid-ngthread > .reply,
         .ngid-ngpost > *:not(.post-head),
@@ -170,7 +546,6 @@
         let id = this.dataset.id;
         if (selfSetting.addNg("ngIds", id)) {
             console.log(`add NGID ${id}`);
-            saveSetting();
         }
     }
 
@@ -182,7 +557,6 @@
             console.log(`remove NGNO ${no}`);
             selfSetting.removeNg("ngNos", no);
         }
-        saveSetting();
     }
 
     function markPostContent(post) {
@@ -261,94 +635,15 @@
         threadObserver.observe(thread, { childList: true });
     });
 
-    // add setting block
-    let ngSettingIdInput = document.createElement("textarea");
-    ngSettingIdInput.style.height = "10em";
-
-    let ngSettingNoInput = document.createElement("textarea");
-    ngSettingNoInput.style.height = "10em";
-
-    let ngSettingWordInput = document.createElement("textarea");
-    ngSettingWordInput.style.height = "10em";
-
-    function updateSetting() {
-        ngSettingIdInput.value = selfSetting.ngIds
-            .map(v => `ID:${v}`).join("\n");
-        ngSettingNoInput.value = selfSetting.ngNos
-            .map(v => `No.${v}`).join("\n");
-        ngSettingWordInput.value = selfSetting.ngWords.join("\n");
-    }
-
-    function saveSettingCb(ev) {
-        // TODO: don't update creation time
-        selfSetting.clearNg("ngIds");
-        selfSetting.clearNg("ngNos");
-        selfSetting.clearNg("ngWords");
-
-        let saveList = {
-            ngIds: [ ngSettingIdInput, v => v.replace(/^ID:/g, "")],
-            ngNos: [ ngSettingNoInput, v => v.replace(/^No./g, "")],
-            ngWords: [ ngSettingWordInput, v => v ]
-        };
-
-        for (let key of Object.keys(saveList)) {
-            let [field, mapper] = saveList[key];
-            let inputs = field.value.split(/\n/);
-            for (let input of inputs) {
-                input = mapper(input);
-                if (input.length > 0) {
-                    selfSetting.addNg(key, input);
-                }
-            }
+    // bind setting
+    function settingOnChangeCb(key) {
+        if (key === "ngWords") {
+            document.querySelectorAll(".post").forEach(markPostContent);
         }
-
-        saveSetting();
-    }
-
-    function saveSetting() {
-        selfSetting.save();
-        updateSetting();
-
-        // remark posts contains ng word
-        document.querySelectorAll(".post").forEach(markPostContent);
-
         refreshNgList();
     }
-
-    let ngSettingSave = document.createElement("button");
-    ngSettingSave.style.marginTop = "5px";
-    ngSettingSave.innerHTML = "Save";
-    ngSettingSave.addEventListener("click", saveSettingCb, false);
-
-    let ngSettingBlock = document.createElement("div");
-    ngSettingBlock.style = `position: absolute; right: 0px;
-                            display: none; flex-direction: column;
-                            width: 20em;  padding: 5px;
-                            background-color:rgba(0, 0, 0, 0.2);`;
-    ngSettingBlock.appendChild(document.createTextNode("NGID:(id per line)"));
-    ngSettingBlock.appendChild(ngSettingIdInput);
-    ngSettingBlock.appendChild(document.createTextNode("NGNO:(no per line)"));
-    ngSettingBlock.appendChild(ngSettingNoInput);
-    ngSettingBlock.appendChild(document.createTextNode("NGWord:(word per line)"));
-    ngSettingBlock.appendChild(ngSettingWordInput);
-    ngSettingBlock.appendChild(ngSettingSave);
-
-    function switchSettingCb(ev) {
-        let isShow = ngSettingBlock.style.display === "none";
-        ngSettingBlock.style.display = isShow ? "flex" : "none";
-        updateSetting();
-    }
-
-    let ngSetting = document.createElement("a");
-    ngSetting.className = "text-button";
-    ngSetting.innerHTML = "NGID";
-    ngSetting.addEventListener("click", switchSettingCb, false);
-
-    let toplink = document.querySelector("#toplink");
-    toplink.appendChild(document.createTextNode(" ["));
-    toplink.appendChild(ngSetting);
-    toplink.appendChild(document.createTextNode("]"));
-
-    toplink.parentElement.insertBefore(ngSettingBlock, toplink.nextSibling);
+    selfSetting.on("add", settingOnChangeCb);
+    selfSetting.on("remove", settingOnChangeCb);
+    selfSetting.on("clear", settingOnChangeCb);
 })(window);
 // vim: set sw=4 ts=4 sts=4 et:
