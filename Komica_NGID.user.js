@@ -4,7 +4,7 @@
 // @namespace    https://github.com/usausausausak
 // @include      http://*.komica.org/*/*
 // @include      https://*.komica.org/*/*
-// @version      1.5.0
+// @version      1.5.1
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -39,12 +39,6 @@
             return loc.host + boardName;
         })(document.location);
 
-        let fallbackList = {
-            ngIds: [ "ngIdList", list => list.map(v => v.replace(/^ID:/g, ""))],
-            ngNos: [ "ngNoList", list => list.map(v => v.replace(/^No./g, ""))],
-            ngWords: [ "ngWordList", list => list ]
-        };
-
         function jsonReplacer(key, value) {
             if (key === "creationTime") {
                 return new Date(value);
@@ -61,13 +55,7 @@
                                       jsonReplacer);
                 lists[key] = list;
             } catch (ex) {
-                // fallback will remove in future
-                console.warn(selfId, `table "${tableName}" not found, use fallback.`);
-
-                let [fbName, mapper] = fallbackList[key];
-                let list = mapper(GM_getValue(fbName, "").split(/\n/));
-                lists[key] = list.filter(v => v.length)
-                    .map(v => { return { value: v }; });
+                console.warn(selfId, `fail at read ${key}`);
             }
             console.info(selfId, `${key} have ${lists[key].length} items.`);
         }
