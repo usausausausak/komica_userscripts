@@ -4,7 +4,7 @@
 // @namespace    https://github.com/usausausausak
 // @include      http://*.komica.org/*/*
 // @include      https://*.komica.org/*/*
-// @version      1.5.1
+// @version      1.5.2
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -323,8 +323,6 @@
         function renderList(root, listData) {
             let { title, key, prefix, replacer } = listData;
 
-            console.log(selfId, `render list of ${key}`)
-
             // remove all child
             while (root.lastChild) {
                 root.removeChild(root.lastChild);
@@ -367,11 +365,10 @@
                 flex-direction: column;
                 width: 40%;
                 height: 50%;
-                padding: 15px 20px;
                 margin: 0 30%;
                 border-radius: 5px;
                 box-shadow: 0 0 10px #000;
-                background-color: #F0E0D6;
+                background-color: #FFFFEE;
                 transition: top 100ms, visibility 100ms, opacity 100ms;
             }
 
@@ -381,42 +378,45 @@
                 top: 30px;
             }
 
+            .ngid-tabbox-header {
+                display: flex;
+                justify-content: center;
+                background-color: #F0E0D6;
+            }
+
             .ngid-tabbox-tab {
                 cursor: pointer;
-                display: inline-block;
-                width: 10em;
-                padding: 3px 5px;
-                margin-right: 3px;
-                border: 1px solid #FFFFEE;
+                flex: 1;
+                padding: 5px 10px;
                 border-bottom-width: 0;
-            }
-
-            .ngid-tabbox-tab:not(.ngid-tabbox-selected):hover {
-                background-color: #EEAA88;
-            }
-
-            .ngid-tabbox-tab.ngid-tabbox-selected {
-                background-color: #FFFFEE;
                 color: #800000;
                 font-weight: bold;
             }
 
+            .ngid-tabbox-tab.ngid-tabbox-selected {
+                background-color: #EEAA88;
+            }
+
             .ngid-tabbox-container {
+                display: flex;
                 flex: 1;
-                overflow-y: scroll;
-                border: 1px solid #FFFFEE;
-                background-color: #FFFFEE;
+                overflow-y: auto;
             }
 
             .ngid-tabbox-page {
-                display: none;
+                display: flex;
                 flex-direction: column;
-                max-height: 100%;
-                margin: 0 10px;
+                width: 0;
+                opacity: 0;
+                overflow-y: scroll;
+                overflow-x: hidden;
+                transition: opacity 200ms;
             }
 
             .ngid-tabbox-page.ngid-tabbox-selected {
-                display: flex;
+                width: 100%;
+                opacity: 1;
+                padding: 0 10px;
             }
 
             .ngid-listitem {
@@ -452,7 +452,7 @@
         tabBox.appendTo(dialog);
 
         let closeBut = document.createElement("button");
-        closeBut.style.cssText = "align-self: center; margin-top: 5px";
+        closeBut.style.cssText = "align-self: flex-end; margin: 10px 20px";
         closeBut.innerHTML = "Close";
         closeBut.addEventListener("click", toggleDialog, false);
         dialog.appendChild(closeBut);
