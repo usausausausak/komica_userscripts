@@ -4,7 +4,7 @@
 // @namespace    https://github.com/usausausausak
 // @include      http://*.komica.org/*/*
 // @include      https://*.komica.org/*/*
-// @version      1.5.2
+// @version      1.5.3
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -237,14 +237,16 @@
 
         let ngLists = [
             {
-                title: "NGID", key: "ngIds", prefix: "ID:",
+                title: "NGID", description: "指定したIDのスレ/レスを隠す",
+                key: "ngIds", prefix: "ID:",
                 replacer(value) {
                     value = value.replace(/^ID:/, "");
                     return value;
                 },
             },
             {
-                title: "NGNo", key: "ngNos", prefix: "No.",
+                title: "NGNo", description: "指定したスレ/レスを隠す",
+                key: "ngNos", prefix: "No.",
                 replacer(value) {
                     value = value.replace(/^No./, "");
                     if (value.match(/\D/)) {
@@ -254,7 +256,8 @@
                 },
             },
             {
-                title: "NGWord", key: "ngWords", prefix: "",
+                title: "NGWord", description: "指定した文字列を含むスレ/レスを隠す",
+                key: "ngWords", prefix: "",
                 replacer(value) { return value; },
             },
         ];
@@ -285,7 +288,7 @@
 
             let delButton = document.createElement("span");
             delButton.className = "text-button";
-            delButton.innerHTML = "Delete";
+            delButton.innerHTML = "削除";
             delButton.dataset.value = value;
             delButton.addEventListener("click", removeItemCb, false);
             view.appendChild(delButton);
@@ -301,7 +304,7 @@
             view.appendChild(textField);
 
             let addButton = document.createElement("button");
-            addButton.innerHTML = "Add";
+            addButton.innerHTML = "追加";
             addButton.addEventListener("click",
                 ev => {
                     let listData = getCurrentListData();
@@ -321,15 +324,15 @@
         }
 
         function renderList(root, listData) {
-            let { title, key, prefix, replacer } = listData;
+            let { title, description, key, prefix, replacer } = listData;
 
             // remove all child
             while (root.lastChild) {
                 root.removeChild(root.lastChild);
             }
 
-            let placeholder = `Add a ${title}`;
-            let inputField = createInputField(placeholder, replacer);
+            let placeholder = `${title}に追加`;
+            let inputField = createInputField(description, replacer);
             root.appendChild(inputField);
 
             let lists = setting[key];
@@ -366,6 +369,7 @@
                 width: 40%;
                 height: 50%;
                 margin: 0 30%;
+                overflow: hidden;
                 border-radius: 5px;
                 box-shadow: 0 0 10px #000;
                 background-color: #FFFFEE;
@@ -387,10 +391,13 @@
             .ngid-tabbox-tab {
                 cursor: pointer;
                 flex: 1;
-                padding: 5px 10px;
-                border-bottom-width: 0;
+                padding: 7px 12px;
                 color: #800000;
                 font-weight: bold;
+            }
+
+            .ngid-tabbox-tab:hover {
+                background-color: #EEAA88;
             }
 
             .ngid-tabbox-tab.ngid-tabbox-selected {
@@ -434,8 +441,12 @@
             .ngid-inputfield {
                 display: flex;
                 justify-content: center;
-                padding: 3px 0;
+                padding: 7px 5px;
                 border-bottom: 1px solid #000;
+            }
+
+            .ngid-inputfield input {
+                flex: 1;
             }
         `);
 
@@ -453,7 +464,7 @@
 
         let closeBut = document.createElement("button");
         closeBut.style.cssText = "align-self: flex-end; margin: 10px 20px";
-        closeBut.innerHTML = "Close";
+        closeBut.innerHTML = "閉じる";
         closeBut.addEventListener("click", toggleDialog, false);
         dialog.appendChild(closeBut);
 
@@ -483,24 +494,66 @@
             opacity: 0.3;
         }
 
-        .ngid-button > div {
+        .ngid-menu {
             display: inline-block;
             visibility: hidden;
             position: absolute;
             padding: 5px 10px;
-            background-color: rgba(238, 170, 136, 0.9);
+            background-color: #EEAA88;
             border-radius: 5px;
-            overflow: hidden;
-            white-space: nowrap;
-            max-height: 0px;
-            transition: max-height 200ms;
+            margin-top: -10px;
+            transition: margin 100ms;
         }
 
-        .ngid-button:hover > div {
+        .ngid-context:hover .ngid-menu {
             visibility: visible;
-            max-height: 200px;
+            margin-top: unset;
         }
     `);
+
+    function renderContext(root, post, ngState = "") {
+        // remove all child
+        while (root.lastChild) {
+            root.removeChild(root.lastChild);
+        }
+
+        let isThreadPost = post.classList.contains("threadpost");
+        let postId = post.dataset.ngidId;
+        let postNo = post.dataset.ngidNo;
+
+        let menu = document.createElement("div");
+        menu.className = "ngid-menu";
+        root.appendChild(menu);
+        root.appendChild(document.createTextNode("NG"));
+
+        let postType = (isThreadPost) ? "スレ" : "レス";
+        if (ngState === "ngword") {
+            menu.appendChild(document.createTextNode(
+                `この${postType}にはNGWordsが含まれている。`));
+        } else if (ngState === "ngid") {
+            menu.appendChild(document.createTextNode(
+                `このIDはNGIDに指定されている。`));
+        } else {
+            let ngNoButton = document.createElement("div");
+            ngNoButton.className = "text-button";
+            ngNoButton.dataset.no = postNo;
+            if (ngState == "ngno") {
+                ngNoButton.innerHTML = `この${postType}を現す`;
+            } else {
+                ngNoButton.innerHTML = `この${postType}を隠す`;
+            }
+            ngNoButton.addEventListener("click", addNgNoCb, false);
+
+            menu.appendChild(ngNoButton);
+
+            let ngIdButton = document.createElement("div");
+            ngIdButton.className = "text-button";
+            ngIdButton.dataset.id = postId;
+            ngIdButton.innerHTML = `ID:${postId}をNGIDに追加`;
+            ngIdButton.addEventListener("click", addNgIdCb, false);
+            menu.appendChild(ngIdButton);
+        }
+    }
 
     function addNgPost(post) {
         if (post.classList.contains("threadpost")) {
@@ -518,13 +571,26 @@
 
     function refreshNgList() {
         document.querySelectorAll(".post").forEach(post => {
-            let needNg = post.dataset.ngidContainsWord === "true" ||
-                         selfSetting.ngIds.includes(post.dataset.ngidId) ||
-                         selfSetting.ngNos.includes(post.dataset.no);
-            if (needNg) {
+            let isNgPost = post.classList.contains("ngid-ngpost");
+            let ngState = "";
+            if (post.dataset.ngidContainsWord == "true") {
+                ngState = "ngword";
+            } else if (selfSetting.ngIds.includes(post.dataset.ngidId)) {
+                ngState = "ngid";
+            } else if (selfSetting.ngNos.includes(post.dataset.no)) {
+                ngState = "ngno";
+            }
+
+            if (ngState !== "") {
                 addNgPost(post);
             } else {
                 removeNgPost(post);
+            }
+
+            // no touch if it isn't and wasn't a NGed post
+            if ((isNgPost) || (ngState !== "")) {
+                let context = post.querySelector(".ngid-context");
+                renderContext(context, post, ngState);
             }
         });
     }
@@ -563,39 +629,24 @@
             idBlock.innerHTML.replace(/^.*ID:/, "");
 
         // marker
+        post.dataset.ngidStats = 0;
+        post.dataset.ngidNo = postNo;
         post.dataset.ngidId = postId;
         markPostContent(post);
 
-        // create ng button if necessary
-        if (post.querySelector(".ngid-button")) {
+        // create menu root if necessary
+        if (post.querySelector(".ngid-context")) {
             return;
         }
 
-        let ngButton = document.createElement("span");
-        ngButton.className = "text-button ngid-button";
+        let context = document.createElement("span");
+        context.className = "text-button ngid-context";
 
         let delButton = post.querySelector(".post-head .-del-button");
         let parent = delButton.parentElement;
-        parent.insertBefore(ngButton, delButton);
+        parent.insertBefore(context, delButton);
 
-        let ngButtonContainer = document.createElement("div");
-        ngButton.appendChild(ngButtonContainer);
-        ngButton.appendChild(document.createTextNode("NG"));
-
-        let ngIdButton = document.createElement("div");
-        ngIdButton.className = "text-button";
-        ngIdButton.dataset.id = postId;
-        ngIdButton.innerHTML = `NGID: ${postId}`;
-        ngIdButton.addEventListener("click", addNgIdCb, false);
-
-        let ngNoButton = document.createElement("div");
-        ngNoButton.className = "text-button";
-        ngNoButton.dataset.no = postNo;
-        ngNoButton.innerHTML = `Toggle NG post: No.${postNo}`;
-        ngNoButton.addEventListener("click", addNgNoCb, false);
-
-        ngButtonContainer.appendChild(ngNoButton);
-        ngButtonContainer.appendChild(ngIdButton);
+        renderContext(context, post, "");
     }
 
     document.querySelectorAll(".post").forEach(initPost);
