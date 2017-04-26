@@ -115,14 +115,28 @@
     }
 
     function activeScript() {
-        // remove dup event
-        document.querySelectorAll(`.post-head > span,
-                                   .resquote > a`).forEach(element => {
+        // remove exists event
+        let elementsWithEvent = ([
+            "#postform_main",
+            ".post-head > span",
+            ".file-thumb",
+        ]).join(",");
+
+        document.querySelectorAll(elementsWithEvent).forEach(element => {
             let clone = element.cloneNode();
             while (element.firstChild) {
                 clone.appendChild(element.lastChild);
             }
             element.parentNode.replaceChild(clone, element);
+        });
+
+        // remove auto created element
+        let elementsParentNeedRemove = ([
+            ".quote .-expand-youtube",
+        ]).join(",");
+        document.querySelectorAll(elementsParentNeedRemove).forEach(element => {
+            element = element.parentNode;
+            element.parentNode.removeChild(element);
         });
 
         // run script.js
