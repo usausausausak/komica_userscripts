@@ -4,7 +4,7 @@
 // @description  Notify new post every 60seconds on komica
 // @include      http://*.komica.org/*/pixmicat.php?res=*
 // @include      https://*.komica.org/*/pixmicat.php?res=*
-// @version      1.0.2
+// @version      1.1.0
 // @grant        none
 // ==/UserScript==
 (function (window) {
@@ -64,6 +64,7 @@
         let post = document.querySelector(`#r${postNo}`);
         if (post) {
             post.style.opacity = 0.5;
+            post.style.transition = "opacity 100ms";
         }
     }
 
@@ -87,6 +88,35 @@
         return flag;
     }
 
+    async function elementFadeIn(element, interval, factor) {
+        if (element.style.opacity === null) {
+            element.style.opacity = 0;
+        }
+
+        let opacity = +element.style.opacity; // style.opacity is a string
+        if (opacity >= 1) {
+            element.style.opacity = null;
+        } else {
+            element.style.opacity = factor + opacity;
+            await wait(interval);
+            elementFadeIn(element, interval, factor);
+        }
+    }
+
+    async function displayPost(iter) {
+        let value = iter.next();
+        if (value.done) {
+            return;
+        }
+
+        let post = value.value[1];
+        // fadein in javascript to reduce impact on stylesheet
+        elementFadeIn(post, 10, 0.1); // total 100ms
+
+        await wait(50);
+        displayPost(iter);
+    }
+
     function renderNewPost(postNos, postDataMap, setReadFlag = false) {
         let container = document.querySelector("#threads > .thread");
         let insertPoint = container.querySelector("hr");
@@ -100,18 +130,27 @@
         document.title = `${PageTitle} (${NewPost})`;
 
         console.log(`Have new post: ${postNos.size}.`);
+        let posts = [];
         for (let postNo of postNos) {
             if (!postDataMap.has(postNo)) {
                 continue;
             }
-            let post = postDataMap.get(postNo);
+            let postData = postDataMap.get(postNo);
 
             let postBlock = document.createElement("div");
-            postBlock.innerHTML = post.html.replace(/^[^<]*/, "");
+            postBlock.innerHTML = postData.html.replace(/^[^<]*/, "");
 
-            container.insertBefore(postBlock.childNodes[0], insertPoint);
+            let post = postBlock.childNodes[0];
+            post.style.opacity = 0;
+
+            container.insertBefore(post, insertPoint);
             PostNos.add(postNo);
+            posts.push(post);
         }
+
+        // fadein new posts
+        let iter = posts.entries();
+        displayPost(iter);
     }
 
     function activeScript() {
