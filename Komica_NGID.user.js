@@ -4,7 +4,7 @@
 // @namespace    https://github.com/usausausausak
 // @include      http://*.komica.org/*/*
 // @include      https://*.komica.org/*/*
-// @version      1.5.3
+// @version      1.5.4
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -642,9 +642,9 @@
         let context = document.createElement("span");
         context.className = "text-button ngid-context";
 
-        let delButton = post.querySelector(".post-head .-del-button");
-        let parent = delButton.parentElement;
-        parent.insertBefore(context, delButton);
+        let insertPoint = post.querySelector(".post-head [data-no]");
+        let parent = insertPoint.parentElement;
+        parent.insertBefore(context, insertPoint.nextSibling);
 
         renderContext(context, post, "");
     }
