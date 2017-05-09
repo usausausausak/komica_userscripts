@@ -4,10 +4,12 @@
 // @description  Notify new post every 60seconds on komica
 // @include      http://*.komica.org/*/pixmicat.php?res=*
 // @include      https://*.komica.org/*/pixmicat.php?res=*
-// @version      1.1.1
+// @version      1.1.2
 // @grant        none
 // ==/UserScript==
 (function (window) {
+    const selfId = "[Komica_notify]";
+
     const GET_POST_LIST_URL = "./pixmicat.php?mode=module&load=mod_ajax&action=thread&html=true&op=";
     const FETCH_TIMEOUT = 30 * 1000;
     const PULL_INTERVAL = 60 * 1000;
@@ -37,7 +39,6 @@
 
     async function getPosts() {
         return new Promise((resolve, reject) => {
-            console.log(`Get ${GetPostsUrl}`);
             let req = new XMLHttpRequest();
             req.open("GET", GetPostsUrl);
             req.responseType = "json";
@@ -128,7 +129,7 @@
         NewPost += postNos.size;
         document.title = `${PageTitle} (${NewPost})`;
 
-        console.log(`Have new post: ${postNos.size}.`);
+        console.log(selfId, `Have new post: ${postNos.size}.`);
         let posts = [];
         for (let postNo of postNos) {
             if (!postDataMap.has(postNo)) {
@@ -211,7 +212,6 @@
         startLoad();
         try {
             let postDatas = (await getPosts()).posts;
-            console.log(`Rev post: ${postDatas.length}.`);
 
             let postDataMap = new Map(
                 postDatas.map(post => [post.no.toString(), post]));
@@ -231,7 +231,7 @@
                 try {
                     activeScript();
                 } catch (ex) {
-                    console.log(ex);
+                    console.error(selfId, ex);
                 }
 
                 window.postMessage({ event: "notify-new-posts",
@@ -241,16 +241,16 @@
                 if (resetReadFlag) {
                     removeReadFlagElement();
                 }
-                console.log("No new post.")
+                console.log(selfId, "No new post.")
             }
         } catch (ex) {
-            console.log(`Fail: ${ex}, retry at ${PULL_INTERVAL}.`);
+            console.error(selfId, `Fail: ${ex}, retry at ${PULL_INTERVAL}.`);
         }
 
         endLoad();
 
         // next iterate
-        console.log(`Last update: ${new Date()}.`);
+        console.log(selfId, `Last update: ${new Date()}.`);
         updatePosts();
     }
 
