@@ -4,7 +4,7 @@
 // @description  Notify new post every 60seconds on komica
 // @include      http://*.komica.org/*/pixmicat.php?res=*
 // @include      https://*.komica.org/*/pixmicat.php?res=*
-// @version      1.1.0
+// @version      1.1.1
 // @grant        none
 // ==/UserScript==
 (function (window) {
@@ -20,7 +20,7 @@
 
     let PageTitle = document.title;
     let GetPostsUrl = GET_POST_LIST_URL + ThreadNo;
-    let Timer = null;
+    let updateTimer = null;
 
     let NewPost = 0;
     let ResetRead = true;
@@ -32,8 +32,7 @@
     }
 
     async function wait(msec) {
-        return new Promise(resolve => Timer = setTimeout(() => resolve(),
-                           msec));
+        return new Promise(resolve => setTimeout(() => resolve(), msec));
     }
 
     async function getPosts() {
@@ -189,9 +188,18 @@
                                 false);
     }
 
+    async function updateWait(msec) {
+        return new Promise(resolve => {
+            updateTimer = setTimeout(() => resolve(), msec);
+        });
+    }
+
     async function updatePosts(immediately = false) {
+        clearTimeout(updateTimer);
+        updateTimer = null;
+
         if (!immediately) {
-            await wait(PULL_INTERVAL);
+            await updateWait(PULL_INTERVAL);
         }
 
         let resetReadFlag = ResetRead;
@@ -265,7 +273,6 @@
 
     function manualReload() {
         if (!isLoading()) {
-            clearTimeout(Timer);
             ResetRead = true;
             updatePosts(true);
         }
