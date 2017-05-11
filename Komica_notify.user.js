@@ -4,7 +4,9 @@
 // @description  Notify new post every 60seconds on komica
 // @include      http://*.komica.org/*/pixmicat.php?res=*
 // @include      https://*.komica.org/*/pixmicat.php?res=*
-// @version      1.1.2
+// @include      http://*.komica2.net/*/pixmicat.php?res=*
+// @include      https://*.komica2.net/*/pixmicat.php?res=*
+// @version      1.1.3
 // @grant        none
 // ==/UserScript==
 (function (window) {

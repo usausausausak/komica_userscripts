@@ -4,7 +4,9 @@
 // @description  Play gif files inplace on komica
 // @include      http://*.komica.org/*/*
 // @include      https://*.komica.org/*/*
-// @version      0.1
+// @include      http://*.komica2.net/*/*
+// @include      https://*.komica2.net/*/*
+// @version      0.2
 // @grant        none
 // ==/UserScript==
 (function (window) {
