@@ -6,7 +6,7 @@
 // @include      https://*.komica.org/*/pixmicat.php?res=*
 // @include      http://*.komica2.net/*/pixmicat.php?res=*
 // @include      https://*.komica2.net/*/pixmicat.php?res=*
-// @version      1.1.5
+// @version      1.2
 // @grant        none
 // ==/UserScript==
 (function (window) {
@@ -15,6 +15,9 @@
     const GET_POST_LIST_URL = "./pixmicat.php?mode=module&load=mod_ajax&action=thread&html=true&op=";
     const FETCH_TIMEOUT = 30 * 1000;
     const PULL_INTERVAL = 60 * 1000;
+
+    const NOTIFICATION_CONTENT_LENGTH = 10;
+    const NOTIFICATION_TIMEOUT = 4000;
 
     const pageTitle = document.title;
 
@@ -38,6 +41,41 @@
 
     async function wait(msec) {
         return new Promise(resolve => setTimeout(() => resolve(), msec));
+    }
+
+    function showNotification(unreadSize, newPostSize) {
+        if (!window.Notification) {
+            return;
+        }
+
+        const postImg = threadPost.querySelector(".file-thumb img");
+        const postContent = threadPost.querySelector(".quote");
+
+        // don't show full content
+        const bodys = postContent.innerHTML.split(/<br>/);
+        let body = bodys[0];
+
+        if (body.length > NOTIFICATION_CONTENT_LENGTH) {
+            body = body.substr(0, NOTIFICATION_CONTENT_LENGTH) + "...";
+        } else if (bodys.length > 1) {
+            body += "...";
+        }
+
+        let msg = `新着 ${newPostSize} 件`;
+        if (unreadSize > 0) {
+            msg += `、未読 ${unreadSize} 件`;
+        }
+        const options = {
+            tag: threadNo,
+            body,
+            icon: postImg && postImg.src,
+        }
+
+        let notify = new Notification(msg, options);
+        notify.addEventListener("click", () => {
+            location.href = "#notify-unread-flag";
+        }, false);
+        setTimeout(() => notify.close(), NOTIFICATION_TIMEOUT);
     }
 
     async function getPosts() {
@@ -71,18 +109,18 @@
         }
     }
 
-    function removeReadFlagElement() {
-        let flag = document.querySelector("#notify-read-flag");
+    function removeUnreadFlag() {
+        let flag = document.querySelector("#notify-unread-flag");
         if (flag) {
             flag.parentElement.removeChild(flag);
         }
     }
 
-    function getReadFlagElement() {
-        let flag = document.querySelector("#notify-read-flag");
+    function getUnreadFlagElement() {
+        let flag = document.querySelector("#notify-unread-flag");
         if (!flag) {
             flag = document.createElement("span");
-            flag.id = "notify-read-flag";
+            flag.id = "notify-unread-flag";
             flag.className = "warn_txt2";
             flag.innerHTML = "ここまで読んだ";
             flag.style = `display: flex; justify-content: center;
@@ -121,18 +159,21 @@
     }
 
     function appendNewPosts(postNos, postDataMap) {
+        console.log(selfId, `Have new post: ${postNos.size}.`);
+
         let container = document.querySelector("#threads > .thread");
         let insertPoint = container.querySelector("hr");
 
         // insert read flag if necessary
         if (threadIsRead) {
-            container.insertBefore(getReadFlagElement(), insertPoint);
+            container.insertBefore(getUnreadFlagElement(), insertPoint);
         }
 
+        showNotification(threadNewPost, postNos.size);
+
+        // append to unread post size
         threadNewPost += postNos.size;
         threadIsRead = false;
-
-        console.log(selfId, `Have new post: ${postNos.size}.`);
 
         // render posts
         let posts = [];
@@ -208,6 +249,13 @@
             await updateWait(PULL_INTERVAL);
         }
 
+        // ask notification permission
+        if (Notification.permission === "default") {
+            Notification.requestPermission().then(result => {
+                allowNotification = result === "granted";
+            });
+        }
+
         startLoad();
         try {
             let postDatas = (await getPosts()).posts;
@@ -241,7 +289,7 @@
                                    } , "*");
             } else {
                 if (threadIsRead) {
-                    removeReadFlagElement();
+                    removeUnreadFlag();
                 }
                 console.log(selfId, "No new post.")
             }
