@@ -6,7 +6,7 @@
 // @include      https://*.komica.org/*/pixmicat.php?res=*
 // @include      http://*.komica2.net/*/pixmicat.php?res=*
 // @include      https://*.komica2.net/*/pixmicat.php?res=*
-// @version      1.2.1
+// @version      1.2.2
 // @grant        none
 // ==/UserScript==
 (function (window) {
@@ -296,7 +296,6 @@
                 if (threadIsRead) {
                     removeUnreadFlag();
                 }
-        showNotification(0, 0); // TODO
                 console.log(selfId, "No new post.")
             }
         } catch (ex) {
