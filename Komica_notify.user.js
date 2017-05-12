@@ -6,7 +6,7 @@
 // @include      https://*.komica.org/*/pixmicat.php?res=*
 // @include      http://*.komica2.net/*/pixmicat.php?res=*
 // @include      https://*.komica2.net/*/pixmicat.php?res=*
-// @version      1.1.3
+// @version      1.1.4
 // @grant        none
 // ==/UserScript==
 (function (window) {
@@ -26,8 +26,8 @@
     let GetPostsUrl = GET_POST_LIST_URL + ThreadNo;
     let updateTimer = null;
 
-    let NewPost = 0;
-    let ResetRead = true;
+    let threadNewPost = 0;
+    let threadIsRead = true;
 
     function setGetDiff(lhs, rhs) {
         let set = new Set(lhs);
@@ -119,19 +119,21 @@
         displayPost(iter);
     }
 
-    function renderNewPost(postNos, postDataMap, setReadFlag = false) {
+    function appendNewPosts(postNos, postDataMap) {
         let container = document.querySelector("#threads > .thread");
         let insertPoint = container.querySelector("hr");
 
-        // set read flag if necessary
-        if (setReadFlag) {
+        // insert read flag if necessary
+        if (threadIsRead) {
             container.insertBefore(getReadFlagElement(), insertPoint);
         }
 
-        NewPost += postNos.size;
-        document.title = `${PageTitle} (${NewPost})`;
+        threadNewPost += postNos.size;
+        threadIsRead = false;
 
         console.log(selfId, `Have new post: ${postNos.size}.`);
+
+        // render posts
         let posts = [];
         for (let postNo of postNos) {
             if (!postDataMap.has(postNo)) {
@@ -205,12 +207,6 @@
             await updateWait(PULL_INTERVAL);
         }
 
-        let resetReadFlag = ResetRead;
-        if (ResetRead) {
-            ResetRead = false;
-            NewPost = 0;
-        }
-
         startLoad();
         try {
             let postDatas = (await getPosts()).posts;
@@ -228,7 +224,7 @@
             let newPostNos = setGetDiff(postNos, PostNos);
 
             if (newPostNos.size) {
-                renderNewPost(newPostNos, postDataMap, resetReadFlag);
+                appendNewPosts(newPostNos, postDataMap);
 
                 try {
                     activeScript();
@@ -236,11 +232,14 @@
                     console.error(selfId, ex);
                 }
 
+                // notification
+                document.title = `${PageTitle} (${threadNewPost})`;
+
                 window.postMessage({ event: "notify-new-posts",
                                      posts: Array.from(newPostNos)
                                    } , "*");
             } else {
-                if (resetReadFlag) {
+                if (threadIsRead) {
                     removeReadFlagElement();
                 }
                 console.log(selfId, "No new post.")
@@ -270,12 +269,14 @@
     function endLoad() {
         reloadButton.classList.remove("notify-disabled");
         reloadButton.classList.add("text-button");
-        reloadButton.innerHTML = `新着 ${NewPost} 件。[再読み込み]`;
+        reloadButton.innerHTML = `新着 ${threadNewPost} 件。[再読み込み]`;
     }
 
     function manualReload() {
         if (!isLoading()) {
-            ResetRead = true;
+            threadNewPost = 0;
+            threadIsRead = true;
+
             updatePosts(true);
         }
     }
@@ -293,11 +294,12 @@
     block.appendChild(reloadButton);
     container.appendChild(block);
 
-    // reset read flag if scrolled
+    // treat as read if scrolled
     function readPostCb(ev) {
         document.title = PageTitle;
 
-        ResetRead = true;
+        threadNewPost = 0;
+        threadIsRead = true;
     }
     window.addEventListener("scroll", readPostCb, false);
 
