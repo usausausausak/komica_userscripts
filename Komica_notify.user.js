@@ -6,7 +6,7 @@
 // @include      https://*.komica.org/*/pixmicat.php?res=*
 // @include      http://*.komica2.net/*/pixmicat.php?res=*
 // @include      https://*.komica2.net/*/pixmicat.php?res=*
-// @version      1.2
+// @version      1.2.1
 // @grant        none
 // ==/UserScript==
 (function (window) {
@@ -16,7 +16,7 @@
     const FETCH_TIMEOUT = 30 * 1000;
     const PULL_INTERVAL = 60 * 1000;
 
-    const NOTIFICATION_CONTENT_LENGTH = 10;
+    const NOTIFICATION_TITLE_LENGTH = 20;
     const NOTIFICATION_TIMEOUT = 4000;
 
     const pageTitle = document.title;
@@ -49,16 +49,21 @@
         }
 
         const postImg = threadPost.querySelector(".file-thumb img");
-        const postContent = threadPost.querySelector(".quote");
+        const postBodyView = threadPost.querySelector(".quote");
 
-        // don't show full content
-        const bodys = postContent.innerHTML.split(/<br>/);
-        let body = bodys[0];
+        // only use a part of the content's first line
+        let title = "";
+        try {
+            const bodyFirstView = postBodyView.firstChild.cloneNode(true);
+            title = bodyFirstView.textContent;
+        } catch (ex) {
+            // ignore exception
+        }
 
-        if (body.length > NOTIFICATION_CONTENT_LENGTH) {
-            body = body.substr(0, NOTIFICATION_CONTENT_LENGTH) + "...";
-        } else if (bodys.length > 1) {
-            body += "...";
+        if (title.length > NOTIFICATION_TITLE_LENGTH) {
+            title = title.substr(0, NOTIFICATION_TITLE_LENGTH) + "...";
+        } else if (postBodyView.childNodes.length > 1) {
+            title += "...";
         }
 
         let msg = `新着 ${newPostSize} 件`;
@@ -67,11 +72,11 @@
         }
         const options = {
             tag: threadNo,
-            body,
+            body: msg,
             icon: postImg && postImg.src,
         }
 
-        let notify = new Notification(msg, options);
+        let notify = new Notification(title, options);
         notify.addEventListener("click", () => {
             location.href = "#notify-unread-flag";
         }, false);
@@ -291,6 +296,7 @@
                 if (threadIsRead) {
                     removeUnreadFlag();
                 }
+        showNotification(0, 0); // TODO
                 console.log(selfId, "No new post.")
             }
         } catch (ex) {
@@ -326,7 +332,9 @@
             threadNewPost = 0;
             threadIsRead = true;
 
-            updatePosts(true);
+            updatePosts(true).then(() => {
+                reloadButton.innerHTML = `新着 ${threadNewPost} 件。[再読み込み]`;
+            });
         }
     }
 
