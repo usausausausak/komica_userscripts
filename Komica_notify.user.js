@@ -6,7 +6,7 @@
 // @include      https://*.komica.org/*/pixmicat.php?res=*
 // @include      http://*.komica2.net/*/pixmicat.php?res=*
 // @include      https://*.komica2.net/*/pixmicat.php?res=*
-// @version      1.1.4
+// @version      1.1.5
 // @grant        none
 // ==/UserScript==
 (function (window) {
@@ -16,18 +16,19 @@
     const FETCH_TIMEOUT = 30 * 1000;
     const PULL_INTERVAL = 60 * 1000;
 
-    let ThreadNo = document.querySelector(".threadpost").dataset.no;
-    let PostNos = new Set();
-    document.querySelectorAll(".post")
-        .forEach(post => PostNos.add(post.dataset.no));
-    let Posts = new Map();
+    const pageTitle = document.title;
 
-    let PageTitle = document.title;
-    let GetPostsUrl = GET_POST_LIST_URL + ThreadNo;
-    let updateTimer = null;
-
+    const threadPost = document.getElementsByClassName("threadpost")[0];
+    const threadNo = threadPost.dataset.no;
     let threadNewPost = 0;
     let threadIsRead = true;
+
+    let updateTimer = null;
+    const postsFetchURL = GET_POST_LIST_URL + threadNo;
+
+    const savedPostNos = new Set();
+    document.querySelectorAll(".post")
+        .forEach(post => savedPostNos.add(post.dataset.no));
 
     function setGetDiff(lhs, rhs) {
         let set = new Set(lhs);
@@ -42,7 +43,7 @@
     async function getPosts() {
         return new Promise((resolve, reject) => {
             let req = new XMLHttpRequest();
-            req.open("GET", GetPostsUrl);
+            req.open("GET", postsFetchURL);
             req.responseType = "json";
             req.timeout = FETCH_TIMEOUT;
             req.onload = function () {
@@ -148,7 +149,7 @@
             post.style.opacity = 0;
 
             container.insertBefore(post, insertPoint);
-            PostNos.add(postNo);
+            savedPostNos.add(postNo);
             posts.push(post);
         }
 
@@ -217,11 +218,11 @@
             let postNos = postDatas.map(post => post.no.toString());
 
             // find deleted post
-            let deletedPostNos = setGetDiff(PostNos, postNos);
+            let deletedPostNos = setGetDiff(savedPostNos, postNos);
             deletedPostNos.forEach(setDeletedPost);
 
             // find new posts
-            let newPostNos = setGetDiff(postNos, PostNos);
+            let newPostNos = setGetDiff(postNos, savedPostNos);
 
             if (newPostNos.size) {
                 appendNewPosts(newPostNos, postDataMap);
@@ -233,7 +234,7 @@
                 }
 
                 // notification
-                document.title = `${PageTitle} (${threadNewPost})`;
+                document.title = `${pageTitle} (${threadNewPost})`;
 
                 window.postMessage({ event: "notify-new-posts",
                                      posts: Array.from(newPostNos)
@@ -269,7 +270,7 @@
     function endLoad() {
         reloadButton.classList.remove("notify-disabled");
         reloadButton.classList.add("text-button");
-        reloadButton.innerHTML = `新着 ${threadNewPost} 件。[再読み込み]`;
+        reloadButton.innerHTML = "[再読み込み]";
     }
 
     function manualReload() {
@@ -296,7 +297,7 @@
 
     // treat as read if scrolled
     function readPostCb(ev) {
-        document.title = PageTitle;
+        document.title = pageTitle;
 
         threadNewPost = 0;
         threadIsRead = true;
