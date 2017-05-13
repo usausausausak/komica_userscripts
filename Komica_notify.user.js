@@ -6,7 +6,7 @@
 // @include      https://*.komica.org/*/pixmicat.php?res=*
 // @include      http://*.komica2.net/*/pixmicat.php?res=*
 // @include      https://*.komica2.net/*/pixmicat.php?res=*
-// @version      1.2.2
+// @version      1.2.3
 // @grant        none
 // ==/UserScript==
 (function (window) {
@@ -16,7 +16,6 @@
     const FETCH_TIMEOUT = 30 * 1000;
     const PULL_INTERVAL = 60 * 1000;
 
-    const NOTIFICATION_TITLE_LENGTH = 20;
     const NOTIFICATION_TIMEOUT = 4000;
 
     const pageTitle = document.title;
@@ -51,19 +50,9 @@
         const postImg = threadPost.querySelector(".file-thumb img");
         const postBodyView = threadPost.querySelector(".quote");
 
-        // only use a part of the content's first line
         let title = "";
-        try {
-            const bodyFirstView = postBodyView.firstChild.cloneNode(true);
-            title = bodyFirstView.textContent;
-        } catch (ex) {
-            // ignore exception
-        }
-
-        if (title.length > NOTIFICATION_TITLE_LENGTH) {
-            title = title.substr(0, NOTIFICATION_TITLE_LENGTH) + "...";
-        } else if (postBodyView.childNodes.length > 1) {
-            title += "...";
+        if (postBodyView.firstChild) {
+            title = postBodyView.firstChild.textContent;
         }
 
         let msg = `新着 ${newPostSize} 件`;
@@ -254,11 +243,8 @@
             await updateWait(PULL_INTERVAL);
         }
 
-        // ask notification permission
         if (Notification.permission === "default") {
-            Notification.requestPermission().then(result => {
-                allowNotification = result === "granted";
-            });
+            Notification.requestPermission();
         }
 
         startLoad();
