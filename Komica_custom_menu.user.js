@@ -6,7 +6,7 @@
 // @include      https://komica.org/bbsmenu.html
 // @include      http://*.komica.org/bbsmenu.html
 // @include      https://*.komica.org/bbsmenu.html
-// @version      0.1
+// @version      0.1.1
 // @run-at       document-start
 // @grant        GM_addStyle
 // @grant        GM_setValue
@@ -112,7 +112,7 @@
         }
 
         [Symbol.iterator]() {
-            return this._items.values();
+            return this._items[Symbol.iterator]();
         }
 
         forEach(cb) {
