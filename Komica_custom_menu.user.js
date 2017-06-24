@@ -6,14 +6,14 @@
 // @include      https://komica.org/bbsmenu.html
 // @include      http://*.komica.org/bbsmenu.html
 // @include      https://*.komica.org/bbsmenu.html
-// @version      0.1.1
+// @version      0.1.2
 // @run-at       document-start
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
 // ==/UserScript==
 (function (window) {
-    "strict";
+    "use strict";
     const TAG = "[Komica_custom_menu]";
 
     class EventEmitter {
