@@ -6,7 +6,7 @@
 // @include      https://*.komica.org/*/pixmicat.php?res=*
 // @include      http://*.komica2.net/*/pixmicat.php?res=*
 // @include      https://*.komica2.net/*/pixmicat.php?res=*
-// @version      1.2.3
+// @version      1.2.4
 // @grant        none
 // ==/UserScript==
 (function (window) {
@@ -204,7 +204,7 @@
         document.querySelectorAll(elementsWithEvent).forEach(element => {
             let clone = element.cloneNode();
             while (element.firstChild) {
-                clone.appendChild(element.lastChild);
+                clone.appendChild(element.firstChild);
             }
             element.parentNode.replaceChild(clone, element);
         });
