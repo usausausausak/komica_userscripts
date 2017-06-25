@@ -6,7 +6,7 @@
 // @include      https://*.komica.org/*/*
 // @include      http://*.komica2.net/*/*
 // @include      https://*.komica2.net/*/*
-// @version      0.1
+// @version      0.2
 // @grant        GM_addStyle
 // ==/UserScript==
 (function (window) {
@@ -32,15 +32,6 @@
         }
     }
 
-    const idViewObserver = new MutationObserver(function (records) {
-        for (let record of records) {
-            const idView = record.target;
-            // DON'T modify innerHTML which will emit observer event
-            idView.firstChild.nodeValue =
-                idTextGetExt(idView.firstChild.nodeValue);
-        }
-    });
-
     // from https://greasyfork.org/en/scripts/8444-komica-uiharu-package
     function getIdColor(id) {
         const r = (id.charCodeAt(0) * 57 +
@@ -54,18 +45,34 @@
         return `rgb(${r}, ${g}, ${b})`;
     }
 
-    function colorizeId(postView) {
-        const idView = postView.querySelector(".post-head .id");
+    const idViewObserver = new MutationObserver(function (records) {
+        for (let record of records) {
+            // DON'T modify innerHTML which will emit observer event.
+            // Assume only text node.
+            for (let node of record.addedNodes) {
+                node.nodeValue = idTextGetExt(node.nodeValue);
+            }
+        }
+    });
+
+    function doColorizeId(idView) {
+        idView.innerHTML = idTextGetExt(idView.textContent);
+
+        // Id view will get restored when thread expanding.
+        // Komica notify will reinsert id view,
+        // so need to observe each time when element is appear.
+        idViewObserver.observe(idView, { childList: true });
+
+        // create new id view if necessary
+        let colorizeIdView = idView.previousSibling;
+        if (colorizeIdView.classList.contains("colorize-id-idview")) {
+            return;
+        }
 
         const postId = idView.dataset.id;
-
-        const idText = idView.textContent;
-        const idExt = idTextGetExt(idText);
         const idColor = getIdColor(postId);
 
-        idView.innerHTML = idExt;
-
-        const colorizeIdView = document.createElement("span");
+        colorizeIdView = document.createElement("span");
         colorizeIdView.classList.add("colorize-id-idview");
 
         const idEl = document.createElement("span");
@@ -76,28 +83,33 @@
         colorizeIdView.appendChild(idEl);
 
         idView.parentElement.insertBefore(colorizeIdView, idView);
-
-        // id view will get restore when thread expanding,
-        idViewObserver.observe(idView, { childList: true });
     }
 
-    let retryTime = 5;
-    function start() {
-        const posts = document.getElementsByClassName("post");
-        // make sure script.js has ran
-        if ((posts.length > 0) && (retryTime > 0)) {
-            const idView = posts[0].querySelector(".post-head .id");
-            if (!idView) {
-                --retryTime;
-                setTimeout(start, 50);
-                return;
+    const postHeadViewObserver = new MutationObserver(function (records) {
+        for (let record of records) {
+            record.addedNodes.forEach(node => {
+                if (node.classList.contains("id")) {
+                    doColorizeId(node);
+                }
+            });
+        }
+    });
+
+    function colorizeId(postView) {
+        const idView = postView.querySelector(".post-head .id");
+        if (idView) {
+            doColorizeId(idView);
+        } else {
+            // observe id view appearing
+            const views = postView.getElementsByClassName("post-head");
+            if (views.length > 0) {
+                postHeadViewObserver.observe(views[0], { childList: true });
             }
         }
-
-        Array.prototype.forEach.call(posts, colorizeId);
     }
 
-    start();
+    Array.prototype.forEach.call(document.getElementsByClassName("post"),
+        colorizeId);
 
     // observe thread expand
     const threadObserver = new MutationObserver(function (records) {
