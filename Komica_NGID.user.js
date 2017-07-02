@@ -6,7 +6,7 @@
 // @include      https://*.komica.org/*/*
 // @include      http://*.komica2.net/*/*
 // @include      https://*.komica2.net/*/*
-// @version      1.5.6
+// @version      1.6
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -16,7 +16,7 @@
     const TAG = "[Komica_NGID]";
 
     const settings = (function () {
-        let eventListener = { onadd: [], onremove: [], onclear: [], };
+        let eventListener = { onadd: [], onremove: [], onclear: [], onswap: [] };
 
         function addEventListener(name, cb) {
             if (!eventListener[name]) {
@@ -123,11 +123,26 @@
             emitEvent("onclear", key);
         }
 
+        // unsafe
+        function swapNg(key, list) {
+            if (!Array.isArray(lists[key])) {
+                throw new Error("Invalid key");
+            }
+
+            const oldList = lists[key];
+            lists[key] = list;
+            saveNg(key);
+
+            emitEvent("onswap", key);
+
+            return oldList;
+        }
+
         return {
             get ngIds() { return lists.ngIds.map(v => v.value); },
             get ngNos() { return lists.ngNos.map(v => v.value); },
             get ngWords() { return lists.ngWords.map(v => v.value); },
-            findNg, addNg, removeNg, clearNg,
+            findNg, addNg, removeNg, clearNg, swapNg,
             on(eventName, cb) { addEventListener(`on${eventName}`, cb); },
         };
     })();
@@ -242,7 +257,7 @@
         let ngLists = [
             {
                 title: "NGID", description: "指定したIDのスレ/レスを隠す",
-                key: "ngIds", prefix: "ID:",
+                key: "ngIds", prefix: "ID:", lineEdit: false,
                 replacer(value) {
                     value = value.replace(/^ID:/, "");
                     return value;
@@ -250,7 +265,7 @@
             },
             {
                 title: "NGNo", description: "指定したスレ/レスを隠す",
-                key: "ngNos", prefix: "No.",
+                key: "ngNos", prefix: "No.", lineEdit: false,
                 replacer(value) {
                     value = value.replace(/^No./, "");
                     if (value.match(/\D/)) {
@@ -261,7 +276,7 @@
             },
             {
                 title: "NGWord", description: "指定した文字列を含むスレ/レスを隠す",
-                key: "ngWords", prefix: "",
+                key: "ngWords", prefix: "", lineEdit: true,
                 replacer(value) { return value; },
             },
         ];
@@ -270,6 +285,39 @@
         function getCurrentListData() {
             let currentSelected = tabBox.currentSelected;
             return (currentSelected < 0) ? null : ngLists[currentSelected];
+        }
+
+        function renderLineEdit(root, listData) {
+            root.innerHTML = "";
+
+            const { title, description, key, prefix, lineEdit, replacer } = listData;
+
+            const textView = document.createElement("textarea");
+            textView.classList.add("ngid-lineedit-textview");
+            textView.value = settings[key].join("\n");
+
+            const saveView = document.createElement("div");
+            saveView.classList.add("ngid-lineedit-saveview");
+            saveView.appendChild(document.createTextNode(description));
+
+            const saveButton = document.createElement("button");
+            saveButton.innerHTML = "保存";
+            saveButton.addEventListener("click",
+                ev => {
+                    const lists = textView.value.split(/\n/)
+                        .map(v => replacer(v).trim())
+                        .filter(v => v.length > 0)
+                        .map(v => {
+                            return { value: v, creationTime: new Date() };
+                        });
+                    // swapNg will occur render and back to listview
+                    // unsafe
+                    settings.swapNg(key, lists);
+                }, false);
+            saveView.appendChild(saveButton);
+
+            root.appendChild(saveView);
+            root.appendChild(textView);
         }
 
         function removeItemCb(ev) {
@@ -330,11 +378,22 @@
         function renderList(root, listData) {
             root.innerHTML = "";
 
-            let { title, description, key, prefix, replacer } = listData;
+            let { title, description, key, prefix, lineEdit, replacer } = listData;
 
             let inputField = createInputField(description, replacer);
             root.appendChild(inputField);
 
+            if (lineEdit) {
+                const editButton = document.createElement("button");
+                editButton.classList.add("ngid-lineedit-button");
+                editButton.innerHTML = "編集";
+                editButton.addEventListener("click",
+                    () => renderLineEdit(root, listData), false);
+
+                inputField.appendChild(editButton);
+            }
+
+            // create items list
             let lists = settings[key];
             let items = lists.map(data => createListitem(data, prefix));
             items.reverse();
@@ -356,6 +415,7 @@
         settings.on("add", renderCurrentListCb);
         settings.on("remove", renderCurrentListCb);
         settings.on("clear", renderCurrentListCb);
+        settings.on("swap", renderCurrentListCb);
 
         GM_addStyle(`
 .ngid-dialog {
@@ -446,6 +506,20 @@
 }
 
 .ngid-inputfield input {
+    flex: 1;
+}
+
+.ngid-lineedit-button {
+    margin-left: 10px;
+}
+
+.ngid-lineedit-saveview {
+    display: flex;
+    justify-content: space-between;
+    padding: 7px 5px;
+}
+
+.ngid-lineedit-textview {
     flex: 1;
 }
         `);
@@ -684,4 +758,5 @@
     settings.on("add", settingOnChangeCb);
     settings.on("remove", settingOnChangeCb);
     settings.on("clear", settingOnChangeCb);
+    settings.on("swap", settingOnChangeCb);
 })(window);
