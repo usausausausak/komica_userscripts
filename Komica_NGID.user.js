@@ -6,14 +6,16 @@
 // @include      https://*.komica.org/*/*
 // @include      http://*.komica2.net/*/*
 // @include      https://*.komica2.net/*/*
-// @version      1.5.5
+// @version      1.5.6
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
 // ==/UserScript==
 (function (window) {
-    let selfId = "[Komica_NGID]";
-    let selfSetting = (function () {
+    "use strict";
+    const TAG = "[Komica_NGID]";
+
+    const settings = (function () {
         let eventListener = { onadd: [], onremove: [], onclear: [], };
 
         function addEventListener(name, cb) {
@@ -24,7 +26,7 @@
             if (typeof cb === "function") {
                 eventListener[name].push(cb);
             } else {
-                console.warn(selfId, "event listener not a function");
+                console.warn(TAG, "event listener not a function");
             }
         }
 
@@ -32,7 +34,7 @@
             try {
                 eventListener[name].forEach(cb => cb(...args));
             } catch (ex) {
-                console.error(selfId, ex);
+                console.error(TAG, ex);
             }
         }
 
@@ -57,9 +59,9 @@
                                       jsonReplacer);
                 lists[key] = list;
             } catch (ex) {
-                console.warn(selfId, `fail at read ${key}`);
+                console.warn(TAG, `fail at read ${key}`);
             }
-            console.info(selfId, `${key} have ${lists[key].length} items.`);
+            console.info(TAG, `${key} have ${lists[key].length} items.`);
         }
 
         function saveNg(key) {
@@ -68,7 +70,7 @@
                 let jsonStr = JSON.stringify(lists[key]);
                 GM_setValue(tableName, jsonStr);
             } catch (ex) {
-                console.error(selfId, ex);
+                console.error(TAG, ex);
             }
         }
 
@@ -131,7 +133,7 @@
     })();
 
     // create setting panel
-    (function (setting) {
+    (function (settings) {
         let tabBox = (function (ns) {
             let eventListener = { onswitch: [] };
 
@@ -143,7 +145,7 @@
                 if (typeof cb === "function") {
                     eventListener[name].push(cb);
                 } else {
-                    console.warn(selfId, "event listener not a function");
+                    console.warn(TAG, "event listener not a function");
                 }
             }
 
@@ -151,7 +153,7 @@
                 try {
                     eventListener[name].forEach(cb => cb(...args));
                 } catch (ex) {
-                    console.error(selfId, ex);
+                    console.error(TAG, ex);
                 }
             }
 
@@ -182,7 +184,7 @@
 
             function getPage(index) {
                 if ((index < 0) || (index >= pages.length)) {
-                    console.error(selfId, `invalid tab index: ${index}`);
+                    console.error(TAG, `invalid tab index: ${index}`);
                     return null;
                 }
 
@@ -191,7 +193,7 @@
 
             function switchTab(index) {
                 if ((index < 0) || (index >= pages.length)) {
-                    console.error(selfId, `invalid tab index: ${index}`);
+                    console.error(TAG, `invalid tab index: ${index}`);
                     return;
                 } else if (currentSelected === index) {
                     return;
@@ -277,7 +279,7 @@
             }
 
             let button = ev.target;
-            setting.removeNg(listData.key, button.dataset.value);
+            settings.removeNg(listData.key, button.dataset.value);
         }
 
         function createListitem(value, prefix = "") {
@@ -316,7 +318,7 @@
 
                     let value = replacer(textField.value).trim();
                     if (value !== "") {
-                        setting.addNg(listData.key, value);
+                        settings.addNg(listData.key, value);
                         textField.value = "";
                     }
                     textField.focus();
@@ -326,18 +328,14 @@
         }
 
         function renderList(root, listData) {
+            root.innerHTML = "";
+
             let { title, description, key, prefix, replacer } = listData;
 
-            // remove all child
-            while (root.lastChild) {
-                root.removeChild(root.lastChild);
-            }
-
-            let placeholder = `${title}に追加`;
             let inputField = createInputField(description, replacer);
             root.appendChild(inputField);
 
-            let lists = setting[key];
+            let lists = settings[key];
             let items = lists.map(data => createListitem(data, prefix));
             items.reverse();
             items.forEach(item => root.appendChild(item));
@@ -355,101 +353,101 @@
             }
         }
 
-        setting.on("add", renderCurrentListCb);
-        setting.on("remove", renderCurrentListCb);
-        setting.on("clear", renderCurrentListCb);
+        settings.on("add", renderCurrentListCb);
+        settings.on("remove", renderCurrentListCb);
+        settings.on("clear", renderCurrentListCb);
 
         GM_addStyle(`
-            .ngid-dialog {
-                visibility: hidden;
-                position: fixed;
-                top: -10px;
-                z-index: 1;
-                opacity: 0;
-                display: flex;
-                flex-direction: column;
-                width: 40%;
-                height: 50%;
-                margin: 0 30%;
-                overflow: hidden;
-                border-radius: 5px;
-                box-shadow: 0 0 10px #000;
-                background-color: #FFFFEE;
-                transition: top 100ms, visibility 100ms, opacity 100ms;
-            }
+.ngid-dialog {
+    visibility: hidden;
+    position: fixed;
+    top: -10px;
+    z-index: 1;
+    opacity: 0;
+    display: flex;
+    flex-direction: column;
+    width: 40%;
+    height: 50%;
+    margin: 0 30%;
+    overflow: hidden;
+    border-radius: 5px;
+    box-shadow: 0 0 10px #000;
+    background-color: #FFFFEE;
+    transition: top 100ms, visibility 100ms, opacity 100ms;
+}
 
-            .ngid-dialog-show {
-                visibility: visible;
-                opacity: 1;
-                top: 30px;
-            }
+.ngid-dialog-show {
+    visibility: visible;
+    opacity: 1;
+    top: 30px;
+}
 
-            .ngid-tabbox-header {
-                display: flex;
-                justify-content: center;
-                background-color: #F0E0D6;
-            }
+.ngid-tabbox-header {
+    display: flex;
+    justify-content: center;
+    background-color: #F0E0D6;
+}
 
-            .ngid-tabbox-tab {
-                cursor: pointer;
-                flex: 1;
-                padding: 7px 12px;
-                color: #800000;
-                font-weight: bold;
-            }
+.ngid-tabbox-tab {
+    cursor: pointer;
+    flex: 1;
+    padding: 7px 12px;
+    color: #800000;
+    font-weight: bold;
+}
 
-            .ngid-tabbox-tab:hover {
-                background-color: #EEAA88;
-            }
+.ngid-tabbox-tab:hover {
+    background-color: #EEAA88;
+}
 
-            .ngid-tabbox-tab.ngid-tabbox-selected {
-                background-color: #EEAA88;
-            }
+.ngid-tabbox-tab.ngid-tabbox-selected {
+    background-color: #EEAA88;
+}
 
-            .ngid-tabbox-container {
-                display: flex;
-                flex: 1;
-                overflow-y: auto;
-            }
+.ngid-tabbox-container {
+    display: flex;
+    flex: 1;
+    overflow-y: auto;
+}
 
-            .ngid-tabbox-page {
-                display: flex;
-                flex-direction: column;
-                width: 0;
-                opacity: 0;
-                overflow-y: scroll;
-                overflow-x: hidden;
-                transition: opacity 200ms;
-            }
+.ngid-tabbox-page {
+    display: flex;
+    flex-direction: column;
+    width: 0;
+    opacity: 0;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    transition: opacity 200ms;
+}
 
-            .ngid-tabbox-page.ngid-tabbox-selected {
-                width: 100%;
-                opacity: 1;
-                padding: 0 10px;
-            }
+.ngid-tabbox-page.ngid-tabbox-selected {
+    width: 100%;
+    opacity: 1;
+    padding: 0 10px;
+}
 
-            .ngid-listitem {
-                cursor: pointer;
-                display: flex;
-                justify-content: space-between;
-                padding: 5px 10px;
-                margin: 2px 0;
-            }
+.ngid-listitem {
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 10px;
+    margin: 2px 0;
+}
 
-            .ngid-listitem:hover {
-                background-color: #EEAA88;
-            }
+.ngid-listitem:hover {
+    background-color: #EEAA88;
+}
 
-            .ngid-inputfield {
-                display: flex;
-                justify-content: center;
-                padding: 7px 5px;
-                border-bottom: 1px solid #000;
-            }
+.ngid-inputfield {
+    display: flex;
+    justify-content: center;
+    padding: 7px 5px;
+    border-bottom: 1px solid #000;
+}
 
-            .ngid-inputfield input {
-                flex: 1;
-            }
+.ngid-inputfield input {
+    flex: 1;
+}
         `);
 
         function toggleDialog() {
@@ -481,36 +479,36 @@
         toplink.appendChild(document.createTextNode(" ["));
         toplink.appendChild(toggleButton);
         toplink.appendChild(document.createTextNode("]"));
-    }(selfSetting));
+    }(settings));
 
     // main
     GM_addStyle(`
-        .ngid-ngthread > .reply,
-        .ngid-ngpost > *:not(.post-head),
-        .ngid-ngpost > .post-head > .title,
-        .ngid-ngpost > .post-head > .name {
-            display: none;
-        }
+.ngid-ngthread > .reply,
+.ngid-ngpost > *:not(.post-head),
+.ngid-ngpost > .post-head > .title,
+.ngid-ngpost > .post-head > .name {
+    display: none;
+}
 
-        .ngid-ngpost {
-            opacity: 0.3;
-        }
+.ngid-ngpost {
+    opacity: 0.3;
+}
 
-        .ngid-menu {
-            display: inline-block;
-            visibility: hidden;
-            position: absolute;
-            padding: 5px 10px;
-            background-color: #EEAA88;
-            border-radius: 5px;
-            margin-top: -10px;
-            transition: margin 100ms;
-        }
+.ngid-menu {
+    display: inline-block;
+    visibility: hidden;
+    position: absolute;
+    padding: 5px 10px;
+    background-color: #EEAA88;
+    border-radius: 5px;
+    margin-top: -10px;
+    transition: margin 100ms;
+}
 
-        .ngid-context:hover .ngid-menu {
-            visibility: visible;
-            margin-top: unset;
-        }
+.ngid-context:hover .ngid-menu {
+    visibility: visible;
+    margin-top: unset;
+}
     `);
 
     function renderContext(root, post, ngState = "") {
@@ -577,9 +575,9 @@
             let ngState = "";
             if (post.dataset.ngidContainsWord == "true") {
                 ngState = "ngword";
-            } else if (selfSetting.ngIds.includes(post.dataset.ngidId)) {
+            } else if (settings.ngIds.includes(post.dataset.ngidId)) {
                 ngState = "ngid";
-            } else if (selfSetting.ngNos.includes(post.dataset.no)) {
+            } else if (settings.ngNos.includes(post.dataset.no)) {
                 ngState = "ngno";
             }
 
@@ -600,25 +598,25 @@
     // add NG button
     function addNgIdCb(ev) {
         let id = this.dataset.id;
-        if (selfSetting.addNg("ngIds", id)) {
+        if (settings.addNg("ngIds", id)) {
             console.log(`add NGID ${id}`);
         }
     }
 
     function addNgNoCb(ev) {
         let no = this.dataset.no;
-        if (selfSetting.addNg("ngNos", no)) {
+        if (settings.addNg("ngNos", no)) {
             console.log(`add NGNO ${no}`);
         } else {
             console.log(`remove NGNO ${no}`);
-            selfSetting.removeNg("ngNos", no);
+            settings.removeNg("ngNos", no);
         }
     }
 
     function markPostContent(post) {
         let contentBlock = post.querySelector(".quote");
         let postContent = contentBlock.innerText;
-        post.dataset.ngidContainsWord = selfSetting.ngWords.some(
+        post.dataset.ngidContainsWord = settings.ngWords.some(
             word => postContent.includes(word));
     }
 
@@ -683,8 +681,7 @@
         }
         refreshNgList();
     }
-    selfSetting.on("add", settingOnChangeCb);
-    selfSetting.on("remove", settingOnChangeCb);
-    selfSetting.on("clear", settingOnChangeCb);
+    settings.on("add", settingOnChangeCb);
+    settings.on("remove", settingOnChangeCb);
+    settings.on("clear", settingOnChangeCb);
 })(window);
-// vim: set sw=4 ts=4 sts=4 et:
