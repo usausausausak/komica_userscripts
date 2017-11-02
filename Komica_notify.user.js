@@ -6,19 +6,19 @@
 // @include      https://*.komica.org/*/pixmicat.php?res=*
 // @include      http://*.komica2.net/*/pixmicat.php?res=*
 // @include      https://*.komica2.net/*/pixmicat.php?res=*
-// @version      1.2.4
-// @grant        none
+// @version      1.3.0
 // ==/UserScript==
 (function (window) {
     const selfId = "[Komica_notify]";
 
-    const GET_POST_LIST_URL = "./pixmicat.php?mode=module&load=mod_ajax&action=thread&html=true&op=";
+    const GET_POST_LIST_URL = "pixmicat.php?mode=module&load=mod_ajax&action=thread&html=true&op=";
     const FETCH_TIMEOUT = 30 * 1000;
     const PULL_INTERVAL = 60 * 1000;
 
     const NOTIFICATION_TIMEOUT = 4000;
 
     const pageTitle = document.title;
+    const pageUrl = document.location.toString();
 
     const threadPost = document.getElementsByClassName("threadpost")[0];
     const threadNo = threadPost.dataset.no;
@@ -26,7 +26,9 @@
     let threadIsRead = true;
 
     let updateTimer = null;
-    const postsFetchURL = GET_POST_LIST_URL + threadNo;
+    // fetch url must be absolute url in userscript
+    const postsFetchURL = pageUrl.substr(0, pageUrl.lastIndexOf('/'))
+                          + '/' + GET_POST_LIST_URL + threadNo;
 
     const savedPostNos = new Set();
     document.querySelectorAll(".post")
@@ -73,26 +75,10 @@
     }
 
     async function getPosts() {
-        return new Promise((resolve, reject) => {
-            let req = new XMLHttpRequest();
-            req.open("GET", postsFetchURL);
-            req.responseType = "json";
-            req.timeout = FETCH_TIMEOUT;
-            req.onload = function () {
-                if (req.status === 200) {
-                    resolve(req.response);
-                } else {
-                    reject(req.status);
-                }
-            };
-            req.onerror = function () {
-                reject("error");
-            };
-            req.ontimeout = function () {
-                reject("timeout");
-            };
-            req.send();
-        });
+        return Promise.race([
+            fetch(postsFetchURL).then(res => res.json()),
+            wait(FETCH_TIMEOUT).then(() => Promise.reject("timeout"))
+        ]);
     }
 
     function setDeletedPost(postNo) {
