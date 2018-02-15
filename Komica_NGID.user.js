@@ -6,7 +6,7 @@
 // @include      https://*.komica.org/*/*
 // @include      http://*.komica2.net/*/*
 // @include      https://*.komica2.net/*/*
-// @version      1.6
+// @version      1.7
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -51,7 +51,7 @@
             }
         }
 
-        let lists = { ngIds: [], ngNos: [], ngWords: [] };
+        let lists = { ngIds: [], ngNos: [], ngWords: [], ngImages: [] };
         for (let key of Object.keys(lists)) {
             let tableName = `${tablePrefix}/${key}`;
             try {
@@ -142,6 +142,7 @@
             get ngIds() { return lists.ngIds.map(v => v.value); },
             get ngNos() { return lists.ngNos.map(v => v.value); },
             get ngWords() { return lists.ngWords.map(v => v.value); },
+            get ngImages() { return lists.ngImages.map(v => v.value); },
             findNg, addNg, removeNg, clearNg, swapNg,
             on(eventName, cb) { addEventListener(`on${eventName}`, cb); },
         };
@@ -278,6 +279,14 @@
                 title: "NGWord", description: "指定した文字列を含むスレ/レスを隠す",
                 key: "ngWords", prefix: "", lineEdit: true,
                 replacer(value) { return value; },
+            },
+            {
+                title: "NGImage", description: "指定したIDのイラストを隠す",
+                key: "ngImages", prefix: "ID:", lineEdit: false,
+                replacer(value) {
+                    value = value.replace(/^ID:/, "");
+                    return value;
+                },
             },
         ];
         ngLists.forEach(({ title }) => tabBox.addPage(title));
@@ -568,6 +577,11 @@
     opacity: 0.3;
 }
 
+.ngid-ngimage > .file-text,
+.ngid-ngimage > .file-thumb {
+    display: none;
+}
+
 .ngid-menu {
     display: inline-block;
     visibility: hidden;
@@ -626,6 +640,29 @@
             ngIdButton.innerHTML = `ID:${postId}をNGIDに追加`;
             ngIdButton.addEventListener("click", addNgIdCb, false);
             menu.appendChild(ngIdButton);
+
+            let ngImageButton = document.createElement("div");
+            ngImageButton.className = "text-button";
+            ngImageButton.dataset.id = postId;
+            if (isNgImage(post)) {
+                ngImageButton.innerHTML = `ID:${postId}のイラストを表す`;
+            } else {
+                ngImageButton.innerHTML = `ID:${postId}のイラストを隠す`;
+            }
+            ngImageButton.addEventListener("click", addNgImageCb, false);
+            menu.appendChild(ngImageButton);
+            }
+    }
+
+    function isNgImage(post) {
+        return post.classList.contains("ngid-ngimage");
+    }
+
+    function addNgImage(post, ng) {
+        if (ng) {
+            post.classList.add("ngid-ngimage");
+        } else {
+            post.classList.remove("ngid-ngimage");
         }
     }
 
@@ -661,8 +698,17 @@
                 removeNgPost(post);
             }
 
+            let needNgImage = settings.ngImages.includes(post.dataset.ngidId);
+            if (needNgImage) {
+                addNgImage(post, true);
+            } else {
+                addNgImage(post, false);
+            }
+
             // no touch if it isn't and wasn't a NGed post
-            if ((isNgPost) || (ngState !== "")) {
+            if ((isNgPost)
+                || (ngState !== "")
+                || (isNgImage(post) == needNgImage)) {
                 let context = post.querySelector(".ngid-context");
                 renderContext(context, post, ngState);
             }
@@ -684,6 +730,16 @@
         } else {
             console.log(`remove NGNO ${no}`);
             settings.removeNg("ngNos", no);
+        }
+    }
+
+    function addNgImageCb(ev) {
+        let id = this.dataset.id;
+        if (settings.addNg("ngImages", id)) {
+            console.log(`add NGImage ${id}`);
+        } else {
+            console.log(`remove NGImage ${id}`);
+            settings.removeNg("ngImages", id);
         }
     }
 
