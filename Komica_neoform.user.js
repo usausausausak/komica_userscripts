@@ -2,7 +2,7 @@
 // @name         Komica neo form
 // @namespace    https://github.com/usausausausak
 // @description  Post form with utils on komica
-// @version      0.1.2
+// @version      0.1.3
 // @require      https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @require      https://github.com/usausausausak/neo/raw/97d8aed71a4bfe65316caead4fb6eea3b048ddc1/neo/dist/PaintBBS-1.2.6.js
 // @resource     paintbbs.css https://github.com/usausausausak/neo/raw/97d8aed71a4bfe65316caead4fb6eea3b048ddc1/neo/dist/PaintBBS-1.2.6.css
@@ -25,7 +25,7 @@
 // @include      http://www.camiko.org/*/*.php?page_num=*
 // @include      http://www.camiko.org/*/*.php?res=*
 // @grant        GM_xmlhttpRequest
-// @grant        GM_getResourceUrl
+// @grant        GM_getResourceURL
 // @grant        GM_addStyle
 // @grant        GM.xmlHttpRequest
 // @grant        GM.getResourceUrl
