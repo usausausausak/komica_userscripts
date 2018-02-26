@@ -2,7 +2,7 @@
 // @name         Komica neo form
 // @namespace    https://github.com/usausausausak
 // @description  Post form with utils on komica
-// @version      0.1.0
+// @version      0.1.1
 // @require      https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @require      https://github.com/usausausausak/neo/raw/97d8aed71a4bfe65316caead4fb6eea3b048ddc1/neo/dist/PaintBBS-1.2.6.js
 // @resource     paintbbs.css https://github.com/usausausausak/neo/raw/97d8aed71a4bfe65316caead4fb6eea3b048ddc1/neo/dist/PaintBBS-1.2.6.css
@@ -24,6 +24,9 @@
 // @include      http://www.camiko.org/*/*.htm*
 // @include      http://www.camiko.org/*/*.php?page_num=*
 // @include      http://www.camiko.org/*/*.php?res=*
+// @grant        GM_xmlHttpRequest
+// @grant        GM_getResourceUrl
+// @grant        GM_addStyle
 // @grant        GM.xmlHttpRequest
 // @grant        GM.getResourceUrl
 // @grant        GM.addStyle
@@ -198,8 +201,8 @@
     }
 
     function showSubmitResult(req, form) {
-        const res = req.statusText;
-        const treatAsPost = false;
+        let res = req.statusText;
+        let treatAsPost = false;
 
         const xml = req.responseXML;
         if (xml) {
@@ -246,13 +249,14 @@
                 return;
             }
             formData.set(upfileField.name, image.blob);
+        } else if (upfileField.files.length === 0) {
+            formData.delete(upfileField.name);
         }
 
         const comField = document.getElementById("fcom");
         if (comField) {
             if ((comField.value === "")
-                && ((!formData.has(upfileField.name))
-                    || (formData.get(upfileField.name) === ""))) {
+                && (!formData.has(upfileField.name))) {
                 showMessage("Please write or upload something.");
                 return;
             }
