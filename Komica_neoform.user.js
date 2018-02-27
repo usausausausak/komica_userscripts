@@ -2,7 +2,7 @@
 // @name         Komica neo form
 // @namespace    https://github.com/usausausausak
 // @description  Post form with utils on komica
-// @version      0.1.4
+// @version      0.1.5
 // @require      https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @require      https://github.com/usausausausak/neo/raw/97d8aed71a4bfe65316caead4fb6eea3b048ddc1/neo/dist/PaintBBS-1.2.6.js
 // @resource     paintbbs.css https://github.com/usausausausak/neo/raw/97d8aed71a4bfe65316caead4fb6eea3b048ddc1/neo/dist/PaintBBS-1.2.6.css
@@ -35,6 +35,9 @@
     "use strict";
     const TAG = "[Komica_neoform]";
     const SUBMIT_TIMEOUT = 30 * 1000;
+
+    const BLANK_IMG =
+        "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=";
 
     const pngOptions = { mimeType: "image/png", };
     const jpgOptions = { mimeType: "image/jpeg", quality: 0.9 };
@@ -70,13 +73,15 @@
             const size = Math.ceil(blob.size / 1024);
             image.src = URL.createObjectURL(blob);
             image.title = `Size: ${size} KiB`;
+            image.style.display = "";
 
             if ((info) && (upurlField)) {
                 upurlField.value = info;
             }
         } else {
-            image.src = "";
+            image.src = BLANK_IMG;
             image.title = "";
+            image.style.display = "none";
 
             if (upurlField) {
                 upurlField.value = "";
@@ -420,7 +425,6 @@
         input.type = "text";
         input.size = "28";
         input.placeholder = "or upload from internet";
-        input.style = "vertical-align: bottom;";
         input.addEventListener("change", ev => {
             upfileField.value = "";
             image.blob = null;
@@ -433,7 +437,9 @@
         // preview rendered image
         const image = new Image();
         image.id = "neoform-blob-image";
-        image.style.cssText = "border: 1px dotted black; max-width: 30px; max-height: 30px;";
+        image.src = BLANK_IMG;
+        image.style.cssText =
+            "display: none; border: 1px dotted black; max-width: 1em; max-height: 1em; vertical-align: middle;";
         image.blob = null;
         image.onload = function() {
             window.URL.revokeObjectURL(image.src);
@@ -443,6 +449,7 @@
             if (image.src !== "") {
                 window.URL.revokeObjectURL(image.src);
                 //image.src = ""; // will fire onerror persistently
+                image.style.display = "none";
             }
         }
 
