@@ -2,12 +2,12 @@
 // @name         Komica NGID
 // @description  NG id and post on komica
 // @namespace    https://github.com/usausausausak
-// @include      http://*.komica.org/*/*
 // @include      https://*.komica.org/*/*
-// @include      http://*.komica2.net/*/*
 // @include      https://*.komica2.net/*/*
-// @version      1.7.2
-// @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/db80fc92dd66e50609d004ec22f895a8ebbb2002/libs/komica_queryer.js
+// @include      https://2cat.cf/*/*/*
+// @version      1.8.0
+// @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/d15eb5cf/libs/komica_host_matcher.js
+// @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/d15eb5cf/libs/komica_queryer.js
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -16,7 +16,81 @@
     "use strict";
     const TAG = "[Komica_NGID]";
 
-    const QUERYER = Komica.postQueryer(document.location.host);
+    const HOST_ID = Komica.hostMatcherOr(document.location, 'unknown');
+    console.debug(TAG, `We are at the board of host '${HOST_ID}'.`);
+
+    const QUERYER = Komica.postQueryer(HOST_ID);
+
+    // We need diffence style at diffence host. (how bad)
+    const HOST_STYLE = {
+        'komica': `
+.ngid-context-menu {
+    background-color: #EEAA88;
+}
+
+/*
+ * All reply posts of the NGed thread post also be NGed.
+ */
+.ngid-ngthread > .reply,
+.ngid-ngpost > *:not(.post-head),
+.ngid-ngpost > .post-head > .title,
+.ngid-ngpost > .post-head > .name {
+    display: none;
+}
+
+.ngid-ngimage > .file-text,
+.ngid-ngimage > .file-thumb {
+    display: none;
+}
+        `,
+        '2cat': `
+.ngid-context-menu {
+    background-color: #AAEEAA;
+}
+
+#toplink .text-button {
+    cursor: pointer;
+    color: #00E;
+    text-decoration: underline;
+}
+
+#toplink .text-button:hover {
+    color: #D00;
+}
+
+.ngid-context {
+    cursor: pointer;
+    color: #00E;
+    margin-left: 0.2em; /* Nice try! */
+}
+
+.ngid-context .text-button:hover {
+    color: #D00;
+}
+
+/*
+ * Since we can't hide the text node, just leave them out.
+ */
+.ngid-ngpost .quote,
+.ngid-ngpost .title,
+.ngid-ngpost .name,
+.ngid-ngpost .warn_txt2,
+.threadpost.ngid-ngpost > div > a:not(:last-of-type),
+.reply.ngid-ngpost > div > a:not(:first-of-type) {
+    display: none;
+}
+
+.threadpost.ngid-ngimage > div > a:not(:last-of-type),
+.reply.ngid-ngimage > div > a:not(:first-of-type) {
+    display: none;
+}
+
+.ngid-ngpost > div > a.qlink,
+.ngid-ngimage > div > a.qlink {
+    display: unset;
+}
+        `,
+    };
 
     // Mapping post no to meta data. (Global)
     //
@@ -360,7 +434,7 @@
             view.appendChild(dataBlock);
 
             let delButton = document.createElement("span");
-            delButton.className = "text-button";
+            delButton.className = "ngid-text-button";
             delButton.innerHTML = "削除";
             delButton.dataset.value = value;
             delButton.addEventListener("click", removeItemCb, false);
@@ -452,7 +526,7 @@
     margin: 0 30%;
     overflow: hidden;
     border-radius: 5px;
-    box-shadow: 0 0 10px #000;
+    box-shadow: 0 0 15px 5px #5f5059;
     background-color: #FFFFEE;
     transition: top 100ms, visibility 100ms, opacity 100ms;
 }
@@ -513,6 +587,7 @@
     justify-content: space-between;
     padding: 5px 10px;
     margin: 2px 0;
+    color: #800000;
 }
 
 .ngid-listitem:hover {
@@ -570,10 +645,11 @@
         toggleButton.innerHTML = "NGID";
         toggleButton.addEventListener("click", toggleDialog, false);
 
-        let toplink = document.querySelector("#toplink");
-        toplink.appendChild(document.createTextNode(" ["));
-        toplink.appendChild(toggleButton);
-        toplink.appendChild(document.createTextNode("]"));
+        let insertPoint = document.querySelector("#toplink a:last-of-type");
+        let parent = insertPoint.parentElement;
+        insertPoint = insertPoint.nextSibling;
+        parent.insertBefore(document.createTextNode("] ["), insertPoint);
+        parent.insertBefore(toggleButton, insertPoint);
     }
 
     function addNgIdButtonCb(ev) {
@@ -630,7 +706,7 @@
             // Only show buttons of enabled function.
             if (postNo) {
                 let ngNoButton = document.createElement("div");
-                ngNoButton.className = "text-button";
+                ngNoButton.className = "ngid-text-button";
                 ngNoButton.dataset.no = postNo;
                 if (ngState == "ngno") {
                     ngNoButton.innerHTML = `この${postType}を現す`;
@@ -644,14 +720,14 @@
 
             if (postId) {
                 let ngIdButton = document.createElement("div");
-                ngIdButton.className = "text-button";
+                ngIdButton.className = "ngid-text-button";
                 ngIdButton.dataset.id = postId;
                 ngIdButton.innerHTML = `ID:${postId}をNGIDに追加`;
                 ngIdButton.addEventListener("click", addNgIdButtonCb, false);
                 menu.appendChild(ngIdButton);
 
                 let ngImageButton = document.createElement("div");
-                ngImageButton.className = "text-button";
+                ngImageButton.className = "ngid-text-button";
                 ngImageButton.dataset.id = postId;
                 if (isNgImage(post)) {
                     ngImageButton.innerHTML = `ID:${postId}のイラストを表す`;
@@ -721,7 +797,7 @@
         postMetas[postNo] = postMeta;
 
         // Insert the context menu root and create the menu.
-        const insertPoint = QUERYER.afterPostNo(post);
+        const insertPoint = QUERYER.afterPostNoEl(post);
         if (insertPoint) {
             let parent = insertPoint.parentElement;
 
@@ -774,19 +850,32 @@
                 renderContextMenu(post, postMeta, ngState);
             }
         }
+
+        // A workaround for non-structured layout.
+        if (HOST_ID === "2cat") {
+            for (let post of QUERYER.queryThreads()) {
+                const isNgThread = post.classList.contains("ngid-ngpost");
+                let el = post.nextSibling;
+                while ((el) && (!(el instanceof HTMLHRElement))) {
+                    if (QUERYER.isReplyPost(el)) {
+                        if (isNgThread) {
+                            el.classList.add("ngid-destroy");
+                        } else {
+                            el.classList.remove("ngid-destroy");
+                        }
+                    }
+                    el = el.nextSibling;
+                }
+            }
+        }
     }
 
     (function main() {
         createSettingPanel(settings);
 
+        // Shared style.
         GM_addStyle(`
-/*
- * All reply posts of the NGed thread post also be NGed.
- */
-.ngid-ngthread > .reply,
-.ngid-ngpost > *:not(.post-head),
-.ngid-ngpost > .post-head > .title,
-.ngid-ngpost > .post-head > .name {
+.ngid-destroy {
     display: none;
 }
 
@@ -794,9 +883,13 @@
     opacity: 0.3;
 }
 
-.ngid-ngimage > .file-text,
-.ngid-ngimage > .file-thumb {
-    display: none;
+.ngid-text-button {
+    cursor: pointer;
+    color: #00E;
+}
+
+.ngid-text-button:hover {
+    color: #D00;
 }
 
 .ngid-context-menu {
@@ -804,7 +897,6 @@
     visibility: hidden;
     position: absolute;
     padding: 5px 10px;
-    background-color: #EEAA88;
     border-radius: 5px;
     margin-top: -10px;
     transition: margin 100ms;
@@ -814,7 +906,16 @@
     visibility: visible;
     margin-top: unset;
 }
+
+.ngid-ngpost .ngid-context-menu {
+    color: #D00;
+}
         `);
+
+        // Host-dependent style.
+        if (HOST_STYLE[HOST_ID]) {
+            GM_addStyle(HOST_STYLE[HOST_ID]);
+        }
 
         // Init all posts' NG state.
         for (let post of QUERYER.queryPosts()) {
