@@ -6,15 +6,27 @@
 // @include      https://*.komica.org/*/*
 // @include      http://*.komica2.net/*/*
 // @include      https://*.komica2.net/*/*
-// @version      1.7
+// @version      1.7.1
+// @require      https://github.com/usausausausak/komica_userscripts/raw/db80fc92dd66e50609d004ec22f895a8ebbb2002/libs/komica_queryer.js
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
 // ==/UserScript==
-(function (window) {
+(function () {
     "use strict";
     const TAG = "[Komica_NGID]";
 
+    const QUERYER = Komica.postQueryer(document.location.host);
+
+    // Mapping post no to meta data. (Global)
+    //
+    // # Type
+    //
+    // String => PostMetaObject{ id: String, no: String, isThreadPost: bool, isContainsNgWord: bool, contextMenuRoot: HTMLElement }
+    const postMetas = {};
+
+    // Setting. (Global)
+    // TODO: Move reusable code to a independent module.
     const settings = (function () {
         let eventListener = { onadd: [], onremove: [], onclear: [], onswap: [] };
 
@@ -148,8 +160,8 @@
         };
     })();
 
-    // create setting panel
-    (function (settings) {
+    // TODO: Move reusable code to a independent module.
+    function createSettingPanel(settings) {
         let tabBox = (function (ns) {
             let eventListener = { onswitch: [] };
 
@@ -562,10 +574,215 @@
         toplink.appendChild(document.createTextNode(" ["));
         toplink.appendChild(toggleButton);
         toplink.appendChild(document.createTextNode("]"));
-    }(settings));
+    }
 
-    // main
-    GM_addStyle(`
+    function addNgIdButtonCb(ev) {
+        let id = this.dataset.id;
+        if (settings.addNg("ngIds", id)) {
+            console.log(`add NGID ${id}`);
+        }
+    }
+
+    function addNgNoButtonCb(ev) {
+        let no = this.dataset.no;
+        if (settings.addNg("ngNos", no)) {
+            console.log(`add NGNO ${no}`);
+        } else {
+            console.log(`remove NGNO ${no}`);
+            settings.removeNg("ngNos", no);
+        }
+    }
+
+    function addNgImageButtonCb(ev) {
+        let id = this.dataset.id;
+        if (settings.addNg("ngImages", id)) {
+            console.log(TAG, `add NGImage ${id}`);
+        } else {
+            console.log(`remove NGImage ${id}`);
+            settings.removeNg("ngImages", id);
+        }
+    }
+
+    function renderContextMenu(post, postMeta, ngState) {
+        const postId = postMeta.id;
+        const postNo = postMeta.no;
+        const isThreadPost = postMeta.isThreadPost;
+        const root = postMeta.contextMenuRoot;
+
+        // Remove the menu body.
+        while (root.lastChild) {
+            root.removeChild(root.lastChild);
+        }
+
+        let menu = document.createElement("div");
+        menu.className = "ngid-context-menu";
+        root.appendChild(menu);
+        root.appendChild(document.createTextNode("NG"));
+
+        let postType = (isThreadPost) ? "スレ" : "レス";
+        if (ngState === "ngword") {
+            menu.appendChild(document.createTextNode(
+                `この${postType}にはNGWordsが含まれている。`));
+        } else if (ngState === "ngid") {
+            menu.appendChild(document.createTextNode(
+                `このIDはNGIDに指定されている。`));
+        } else {
+            // Only show buttons of enabled function.
+            if (postNo) {
+                let ngNoButton = document.createElement("div");
+                ngNoButton.className = "text-button";
+                ngNoButton.dataset.no = postNo;
+                if (ngState == "ngno") {
+                    ngNoButton.innerHTML = `この${postType}を現す`;
+                } else {
+                    ngNoButton.innerHTML = `この${postType}を隠す`;
+                }
+                ngNoButton.addEventListener("click", addNgNoButtonCb, false);
+
+                menu.appendChild(ngNoButton);
+            }
+
+            if (postId) {
+                let ngIdButton = document.createElement("div");
+                ngIdButton.className = "text-button";
+                ngIdButton.dataset.id = postId;
+                ngIdButton.innerHTML = `ID:${postId}をNGIDに追加`;
+                ngIdButton.addEventListener("click", addNgIdButtonCb, false);
+                menu.appendChild(ngIdButton);
+
+                let ngImageButton = document.createElement("div");
+                ngImageButton.className = "text-button";
+                ngImageButton.dataset.id = postId;
+                if (isNgImage(post)) {
+                    ngImageButton.innerHTML = `ID:${postId}のイラストを表す`;
+                } else {
+                    ngImageButton.innerHTML = `ID:${postId}のイラストを隠す`;
+                }
+                ngImageButton.addEventListener("click",
+                                               addNgImageButtonCb,
+                                               false);
+                menu.appendChild(ngImageButton);
+            }
+        }
+    }
+
+    function isNgImage(post) {
+        return post.classList.contains("ngid-ngimage");
+    }
+
+    function setNgState(post, isNg) {
+        if (isNg) {
+            if (post.classList.contains("threadpost")) {
+                post.parentElement.classList.add("ngid-ngthread");
+            }
+            post.classList.add("ngid-ngpost");
+        } else {
+            if (post.classList.contains("threadpost")) {
+                post.parentElement.classList.remove("ngid-ngthread");
+            }
+            post.classList.remove("ngid-ngpost");
+        }
+    }
+
+    function setNgImage(post, isNg) {
+        if (isNg) {
+            post.classList.add("ngid-ngimage");
+        } else {
+            post.classList.remove("ngid-ngimage");
+        }
+    }
+
+    function isContainsNgWord(post) {
+        const postBody = QUERYER.queryBody(post) || "";
+        return settings.ngWords.some(word => postBody.includes(word));
+    }
+
+    // Init and store the meta data of the `post`.
+    //
+    // This function maybe called twice for a post due to the thread expanding,
+    // but we don't mind and just reinit the post.
+    function initPostMeta(post) {
+        // Only when we know the post no.
+        const postNo = QUERYER.queryNo(post);
+        if (!postNo) {
+            return;
+        }
+
+        post.dataset.ngidNo = postNo; // For convenience.
+
+        const postMeta = {
+            no: postNo,
+            id: QUERYER.queryId(post),
+            isThreadPost: QUERYER.isThreadPost(post),
+            isContainsNgWord: isContainsNgWord(post),
+            contextMenuRoot: null,
+        };
+
+        postMetas[postNo] = postMeta;
+
+        // Insert the context menu root and create the menu.
+        const insertPoint = QUERYER.afterPostNo(post);
+        if (insertPoint) {
+            let parent = insertPoint.parentElement;
+
+            let contextMenuRoot = document.createElement("span");
+            contextMenuRoot.className = "text-button ngid-context";
+            parent.insertBefore(contextMenuRoot, insertPoint);
+
+            postMeta.contextMenuRoot = contextMenuRoot;
+
+            renderContextMenu(post, postMeta, "");
+        }
+    }
+
+    function updateNgWordState() {
+        for (let post of QUERYER.queryPosts()) {
+            const postMeta = postMetas[post.dataset.ngidNo];
+            if (postMeta) {
+                postMeta.isContainsNgWord = isContainsNgWord(post);
+            }
+        }
+    }
+
+    function updateNgState() {
+        for (let post of QUERYER.queryPosts()) {
+            const postMeta = postMetas[post.dataset.ngidNo];
+            if (!postMeta) {
+                continue;
+            }
+
+            let isNgPost = post.classList.contains("ngid-ngpost");
+            let ngState = "";
+            if (postMeta.isContainsNgWord) {
+                ngState = "ngword";
+            } else if (settings.ngIds.includes(postMeta.id)) {
+                ngState = "ngid";
+            } else if (settings.ngNos.includes(postMeta.no)) {
+                ngState = "ngno";
+            }
+
+            let needNgImage = settings.ngImages.includes(postMeta.id);
+
+            setNgState(post, ngState !== "");
+            setNgImage(post, needNgImage);
+
+            // no touch if it isn't and wasn't a NGed post
+            if ((isNgPost)
+                || (ngState !== "")
+                || (isNgImage(post) == needNgImage)) {
+                let context = post.querySelector(".ngid-context");
+                renderContextMenu(post, postMeta, ngState);
+            }
+        }
+    }
+
+    (function main() {
+        createSettingPanel(settings);
+
+        GM_addStyle(`
+/*
+ * All reply posts of the NGed thread post also be NGed.
+ */
 .ngid-ngthread > .reply,
 .ngid-ngpost > *:not(.post-head),
 .ngid-ngpost > .post-head > .title,
@@ -582,7 +799,7 @@
     display: none;
 }
 
-.ngid-menu {
+.ngid-context-menu {
     display: inline-block;
     visibility: hidden;
     position: absolute;
@@ -593,226 +810,50 @@
     transition: margin 100ms;
 }
 
-.ngid-context:hover .ngid-menu {
+.ngid-context:hover .ngid-context-menu {
     visibility: visible;
     margin-top: unset;
 }
-    `);
+        `);
 
-    function renderContext(root, post, ngState = "") {
-        // remove all child
-        while (root.lastChild) {
-            root.removeChild(root.lastChild);
+        // Init all posts' NG state.
+        for (let post of QUERYER.queryPosts()) {
+            initPostMeta(post);
         }
+        updateNgState();
 
-        let isThreadPost = post.classList.contains("threadpost");
-        let postId = post.dataset.ngidId;
-        let postNo = post.dataset.ngidNo;
-
-        let menu = document.createElement("div");
-        menu.className = "ngid-menu";
-        root.appendChild(menu);
-        root.appendChild(document.createTextNode("NG"));
-
-        let postType = (isThreadPost) ? "スレ" : "レス";
-        if (ngState === "ngword") {
-            menu.appendChild(document.createTextNode(
-                `この${postType}にはNGWordsが含まれている。`));
-        } else if (ngState === "ngid") {
-            menu.appendChild(document.createTextNode(
-                `このIDはNGIDに指定されている。`));
-        } else {
-            let ngNoButton = document.createElement("div");
-            ngNoButton.className = "text-button";
-            ngNoButton.dataset.no = postNo;
-            if (ngState == "ngno") {
-                ngNoButton.innerHTML = `この${postType}を現す`;
-            } else {
-                ngNoButton.innerHTML = `この${postType}を隠す`;
-            }
-            ngNoButton.addEventListener("click", addNgNoCb, false);
-
-            menu.appendChild(ngNoButton);
-
-            let ngIdButton = document.createElement("div");
-            ngIdButton.className = "text-button";
-            ngIdButton.dataset.id = postId;
-            ngIdButton.innerHTML = `ID:${postId}をNGIDに追加`;
-            ngIdButton.addEventListener("click", addNgIdCb, false);
-            menu.appendChild(ngIdButton);
-
-            let ngImageButton = document.createElement("div");
-            ngImageButton.className = "text-button";
-            ngImageButton.dataset.id = postId;
-            if (isNgImage(post)) {
-                ngImageButton.innerHTML = `ID:${postId}のイラストを表す`;
-            } else {
-                ngImageButton.innerHTML = `ID:${postId}のイラストを隠す`;
-            }
-            ngImageButton.addEventListener("click", addNgImageCb, false);
-            menu.appendChild(ngImageButton);
-            }
-    }
-
-    function isNgImage(post) {
-        return post.classList.contains("ngid-ngimage");
-    }
-
-    function addNgImage(post, ng) {
-        if (ng) {
-            post.classList.add("ngid-ngimage");
-        } else {
-            post.classList.remove("ngid-ngimage");
-        }
-    }
-
-    function addNgPost(post) {
-        if (post.classList.contains("threadpost")) {
-            post.parentElement.classList.add("ngid-ngthread");
-        }
-        post.classList.add("ngid-ngpost");
-    }
-
-    function removeNgPost(post) {
-        if (post.classList.contains("threadpost")) {
-            post.parentElement.classList.remove("ngid-ngthread");
-        }
-        post.classList.remove("ngid-ngpost");
-    }
-
-    function refreshNgList() {
-        document.querySelectorAll(".post").forEach(post => {
-            let isNgPost = post.classList.contains("ngid-ngpost");
-            let ngState = "";
-            if (post.dataset.ngidContainsWord == "true") {
-                ngState = "ngword";
-            } else if (settings.ngIds.includes(post.dataset.ngidId)) {
-                ngState = "ngid";
-            } else if (settings.ngNos.includes(post.dataset.no)) {
-                ngState = "ngno";
-            }
-
-            if (ngState !== "") {
-                addNgPost(post);
-            } else {
-                removeNgPost(post);
-            }
-
-            let needNgImage = settings.ngImages.includes(post.dataset.ngidId);
-            if (needNgImage) {
-                addNgImage(post, true);
-            } else {
-                addNgImage(post, false);
-            }
-
-            // no touch if it isn't and wasn't a NGed post
-            if ((isNgPost)
-                || (ngState !== "")
-                || (isNgImage(post) == needNgImage)) {
-                let context = post.querySelector(".ngid-context");
-                renderContext(context, post, ngState);
-            }
-        });
-    }
-
-    // add NG button
-    function addNgIdCb(ev) {
-        let id = this.dataset.id;
-        if (settings.addNg("ngIds", id)) {
-            console.log(`add NGID ${id}`);
-        }
-    }
-
-    function addNgNoCb(ev) {
-        let no = this.dataset.no;
-        if (settings.addNg("ngNos", no)) {
-            console.log(`add NGNO ${no}`);
-        } else {
-            console.log(`remove NGNO ${no}`);
-            settings.removeNg("ngNos", no);
-        }
-    }
-
-    function addNgImageCb(ev) {
-        let id = this.dataset.id;
-        if (settings.addNg("ngImages", id)) {
-            console.log(`add NGImage ${id}`);
-        } else {
-            console.log(`remove NGImage ${id}`);
-            settings.removeNg("ngImages", id);
-        }
-    }
-
-    function markPostContent(post) {
-        let contentBlock = post.querySelector(".quote");
-        let postContent = contentBlock.innerText;
-        post.dataset.ngidContainsWord = settings.ngWords.some(
-            word => postContent.includes(word));
-    }
-
-    function initPost(post) {
-        let idBlock = post.querySelector(".post-head .id") ||
-            post.querySelector(".post-head .now");
-
-        let postNo = post.dataset.no;
-        let postId = idBlock.dataset.id ||
-            idBlock.innerHTML.replace(/^.*ID:/, "");
-
-        // marker
-        post.dataset.ngidStats = 0;
-        post.dataset.ngidNo = postNo;
-        post.dataset.ngidId = postId;
-        markPostContent(post);
-
-        // create menu root if necessary
-        if (post.querySelector(".ngid-context")) {
-            return;
-        }
-
-        let context = document.createElement("span");
-        context.className = "text-button ngid-context";
-
-        let insertPoint = post.querySelector(".post-head [data-no]");
-        let parent = insertPoint.parentElement;
-        parent.insertBefore(context, insertPoint.nextSibling);
-
-        renderContext(context, post, "");
-    }
-
-    document.querySelectorAll(".post").forEach(initPost);
-    refreshNgList();
-
-    // observe thread expand
-    let threadObserver = new MutationObserver(function (records) {
-        let postReplys = records.reduce((total, record) => {
-            for (let node of record.addedNodes) {
-                if ((node.classList) &&
-                    (node.classList.contains("reply"))) {
-                    total.push(node);
+        // Observing the thread expansion.
+        // TODO: Move reusable code to a independent module.
+        let threadObserver = new MutationObserver(function (records) {
+            let postReplys = records.reduce((total, record) => {
+                for (let node of record.addedNodes) {
+                    if (QUERYER.isReplyPost(node)) {
+                        total.push(node);
+                    }
                 }
-            }
-            return total;
-        } , []);
-        let replySize = postReplys.length;
-        console.log(`Reply size change: ${replySize}`);
+                return total;
+            } , []);
+            let replySize = postReplys.length;
+            console.log(`Reply size change: ${replySize}`);
 
-        postReplys.forEach(initPost);
-        refreshNgList();
-    });
+            postReplys.forEach(initPostMeta);
+            updateNgState();
+        });
 
-    document.querySelectorAll(".thread").forEach(thread => {
-        threadObserver.observe(thread, { childList: true });
-    });
-
-    // bind setting
-    function settingOnChangeCb(key) {
-        if (key === "ngWords") {
-            document.querySelectorAll(".post").forEach(markPostContent);
+        for (let thread of QUERYER.queryThreads()) {
+            threadObserver.observe(thread, { childList: true });
         }
-        refreshNgList();
-    }
-    settings.on("add", settingOnChangeCb);
-    settings.on("remove", settingOnChangeCb);
-    settings.on("clear", settingOnChangeCb);
-    settings.on("swap", settingOnChangeCb);
-})(window);
+
+        // Binding with the setting update.
+        function onSettingChangeCb(key) {
+            if (key === "ngWords") {
+                updateNgWordState();
+            }
+            updateNgState();
+        }
+        settings.on("add", onSettingChangeCb);
+        settings.on("remove", onSettingChangeCb);
+        settings.on("clear", onSettingChangeCb);
+        settings.on("swap", onSettingChangeCb);
+    })();
+})();
