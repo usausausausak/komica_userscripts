@@ -6,8 +6,8 @@
 // @include      https://*.komica.org/*/*
 // @include      http://*.komica2.net/*/*
 // @include      https://*.komica2.net/*/*
-// @version      1.7.1
-// @require      https://github.com/usausausausak/komica_userscripts/raw/db80fc92dd66e50609d004ec22f895a8ebbb2002/libs/komica_queryer.js
+// @version      1.7.2
+// @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/db80fc92dd66e50609d004ec22f895a8ebbb2002/libs/komica_queryer.js
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
