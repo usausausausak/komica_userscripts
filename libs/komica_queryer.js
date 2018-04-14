@@ -2,7 +2,7 @@
  * @name         Komica Post Queryer
  * @description  Get a queryer that can query the meta data of posts on board of Komica.
  * @namespace    https://github.com/usausausausak
- * @version      0.2.0
+ * @version      0.2.1
  *
  * function Komica.postQueryer(host: String) -> PostQueryer
  *
@@ -70,7 +70,7 @@ if (typeof Komica === 'undefined') {
       }
     },
     queryBody: function queryBodyKomica(post) {
-      let bodyEl = post.getElementsByClassName('quote');
+      let bodyEl = post.querySelector('.quote');
       if (bodyEl) {
         return bodyEl.innerText;
       } else {
