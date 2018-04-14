@@ -2,7 +2,7 @@
  * @name         Komica Post Queryer
  * @description  Get a queryer that can query the meta data of posts on board of Komica.
  * @namespace    https://github.com/usausausausak
- * @version      0.1.0
+ * @version      0.2.0
  *
  * function Komica.postQueryer(host: String) -> PostQueryer
  *
@@ -30,8 +30,8 @@
  *
  *   // Returns a point after the No of the `post`.
  *   //
- *   // You can use `insertBefore` to insert a node after the No.
- *   static afterPostNo: function (post: HTMLElement) -> (nullable)HTMLElement,
+ *   // You can use `insertBefore` to insert a node after the No element.
+ *   static afterPostNoEl: function (post: HTMLElement) -> (nullable)HTMLElement,
  * }
  */
 
@@ -42,57 +42,108 @@ if (typeof Komica === 'undefined') {
 (function komicaPostQueryer(Komica) {
   'use strict'
 
-  const POST_META_QUERYERS = {
-    komica: {
-      // Matches the host name.
-      matcher: /^([^\.]*)\.komica2?\.(org|net)$/,
-      queryThreads: function queryThreadsKomica() {
-        return document.getElementsByClassName('thread');
-      },
-      queryPosts: function queryPostsKomica() {
-        return document.getElementsByClassName('post');
-      },
-      queryNo: function queryNoKomica(post) {
-        if (post.dataset) {
-          return post.dataset.no;
-        } else {
-          return null;
-        }
-      },
-      queryId: function queryIdKomica(post) {
-        let idEl = post.querySelector('.post-head .id') ||
-          post.querySelector('.post-head .now');
+  const POST_NO_FROM_POST_EL_ID_REGEXP = /^r(\d+)$/;
+  const POST_ID_FROM_NOWID_EL_REGEXP = /ID:(.+)\].*$/;
 
-        if (idEl) {
-          return idEl.dataset.id || idEl.innerHTML.replace(/^.*ID:/, '');
-        } else {
+  const QUERYERS_KOMICA = {
+    queryThreads: function queryThreadsKomica() {
+      return document.getElementsByClassName('thread');
+    },
+    queryPosts: function queryPostsKomica() {
+      return document.getElementsByClassName('post');
+    },
+    queryNo: function queryNoKomica(post) {
+      if (post.dataset) {
+        return post.dataset.no;
+      } else {
+        return null;
+      }
+    },
+    queryId: function queryIdKomica(post) {
+      let idEl = post.querySelector('.post-head .id') ||
+        post.querySelector('.post-head .now');
+
+      if (idEl) {
+        return idEl.dataset.id || idEl.innerHTML.replace(/^.*ID:/, '');
+      } else {
+        return null;
+      }
+    },
+    queryBody: function queryBodyKomica(post) {
+      let bodyEl = post.getElementsByClassName('quote');
+      if (bodyEl) {
+        return bodyEl.innerText;
+      } else {
+        return null;
+      }
+    },
+    isThreadPost: function isThreadPostKomica(post) {
+      return ((post.classList) && (post.classList.contains('threadpost')));
+    },
+    isReplyPost: function isReplyPostKomica(post) {
+      return ((post.classList) && (post.classList.contains('reply')));
+    },
+    afterPostNoEl: function afterPostNoElKomica(post) {
+      const noEl = post.querySelector('.post-head [data-no]');
+      if (noEl) {
+        return noEl.nextSibling;
+      } else {
+        return null;
+      }
+    },
+  };
+
+  const QUERYERS_2CAT = {
+    queryThreads: function queryThreads2Cat() {
+      return document.getElementsByClassName('threadpost');
+    },
+    queryPosts: function queryPosts2Cat() {
+      return document.querySelectorAll('.threadpost, .reply');
+    },
+    queryNo: function queryNo2Cat(post) {
+      const matches = POST_NO_FROM_POST_EL_ID_REGEXP.exec(post.id);
+      if (matches) {
+        return matches[1];
+      } else {
+        return null;
+      }
+    },
+    queryId: function queryId2Cat(post) {
+      const postHeadEl = post.querySelector('div:first-child label');
+      if (postHeadEl) {
+        const matches = POST_ID_FROM_NOWID_EL_REGEXP.exec(postHeadEl.innerText);
+        if (!matches) {
           return null;
+        } else if (matches[1].length >= 8) {
+          // Maybe has a id tail code, but we just ignore that.
+          return matches[1].substr(0, 8);
         }
-      },
-      queryBody: function queryBodyKomica(post) {
-        let bodyEl = post.getElementsByClassName('quote');
-        if (bodyEl) {
-          return bodyEl.innerText;
-        } else {
-          return null;
-        }
-      },
-      isThreadPost: function isThreadPostKomica(post) {
-        return ((post.classList) && (post.classList.contains('threadpost')));
-      },
-      isReplyPost: function isReplyPostKomica(post) {
-        return ((post.classList) && (post.classList.contains('reply')));
-      },
-      afterPostNo: function afterPostNoKomica(post) {
-        const noEl = post.querySelector('.post-head [data-no]');
-        if (noEl) {
-          return noEl.nextSibling;
-        } else {
-          return null;
-        }
-      },
-    }
-  }
+      }
+      return null;
+    },
+    queryBody: function queryBody2Cat(post) {
+      let bodyEl = post.querySelector('div:first-child .quote');
+      if (bodyEl) {
+        return bodyEl.innerText;
+      } else {
+        return null;
+      }
+    },
+    isThreadPost: function isThreadPost2Cat(post) {
+      return ((post.classList) && (post.classList.contains('threadpost')));
+    },
+    isReplyPost: function isReplyPost2Cat(post) {
+      return ((post.classList) && (post.classList.contains('reply')));
+    },
+    afterPostNoEl: function afterPostNoEl2Cat(post) {
+      const noEl = post.querySelector('div:first-child .qlink');
+      if (noEl) {
+        return noEl.nextSibling;
+      } else {
+        return null;
+      }
+    },
+  };
 
   const NULL_QUERYER = {
     queryThreads: function queryThreadsNull() {
@@ -116,24 +167,22 @@ if (typeof Komica === 'undefined') {
     isReplyPost: function isReplyPostNull(post) {
       return false;
     },
-    afterPostNo: function afterPostNoNull(post) {
+    afterPostNoEl: function afterPostNoElNull(post) {
       return null;
     },
   };
 
-  function postQueryer(host) {
-    host = host.replace(/:[0-9]*$/, '');
+  const MAPPER = {
+    'komica': QUERYERS_KOMICA,
+    '2cat':   QUERYERS_2CAT,
+  };
 
-    let ret = NULL_QUERYER;
-    for (let queryer of Object.values(POST_META_QUERYERS)) {
-      if (queryer.matcher.test(host)) {
-        ret = queryer;
-      }
-    }
+  function postQueryer(host) {
+    let ret = (MAPPER[host]) ? MAPPER[host] : NULL_QUERYER;
     return Object.assign({}, ret);
   }
 
-  if ((typeof Komica === 'object') && (!Komica.postQueryer)) {
+  if ((typeof Komica === 'object') && (Komica.postQueryer === undefined)) {
     Komica.postQueryer = postQueryer;
   }
 })(this.Komica);
