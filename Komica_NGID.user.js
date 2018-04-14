@@ -5,9 +5,9 @@
 // @include      https://*.komica.org/*/*
 // @include      https://*.komica2.net/*/*
 // @include      https://2cat.cf/*/*/*
-// @version      1.8.0
-// @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/d15eb5cf/libs/komica_host_matcher.js
-// @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/d15eb5cf/libs/komica_queryer.js
+// @version      1.8.1
+// @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/5d6622b02825fe10780c17be8a9db13ce917ee8c/libs/komica_host_matcher.js
+// @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/5d6622b02825fe10780c17be8a9db13ce917ee8c/libs/komica_queryer.js
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
