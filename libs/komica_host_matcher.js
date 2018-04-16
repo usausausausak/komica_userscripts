@@ -2,7 +2,7 @@
  * @name         Komica Host Matcher
  * @description  Check we are at board of which host
  * @namespace    https://github.com/usausausausak
- * @version      0.1.0
+ * @version      0.1.1
  *
  * Supported host identitys:
  *   komica.org  => komica
@@ -24,7 +24,7 @@ if (typeof Komica === 'undefined') {
   'use strict'
 
   const MATCHER = {
-      'komica': /^([^\.]*)\.komica2?\.(org|net)$/,
+      'komica': /^([^\.]*\.)?komica2?\.(org|net)$/,
       '2cat':   /^2cat\.cf$/,
   };
 
