@@ -2,11 +2,16 @@
 // @name         Komica NGID
 // @description  NG id and post on komica
 // @namespace    https://github.com/usausausausak
+// @include      http://*.komica.org/*/*
 // @include      https://*.komica.org/*/*
+// @include      http://*.komica2.net/*/*
 // @include      https://*.komica2.net/*/*
+// @include      http://komica2.net/*/*
+// @include      https://komica2.net/*/*
+// @include      http://2cat.cf/*/*/*
 // @include      https://2cat.cf/*/*/*
-// @version      1.8.1
-// @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/5d6622b02825fe10780c17be8a9db13ce917ee8c/libs/komica_host_matcher.js
+// @version      1.8.2
+// @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/808e78c9e1bd9c3395b5f0369ee163fe2276241b/libs/komica_host_matcher.js
 // @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/5d6622b02825fe10780c17be8a9db13ce917ee8c/libs/komica_queryer.js
 // @grant        GM_setValue
 // @grant        GM_getValue
