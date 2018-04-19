@@ -2,7 +2,7 @@
  * @name         Komica Post Queryer
  * @description  Get a queryer that can query the meta data of posts on board of Komica.
  * @namespace    https://github.com/usausausausak
- * @version      0.2.1
+ * @version      0.3.0
  *
  * function Komica.postQueryer(host: String) -> PostQueryer
  *
@@ -18,6 +18,12 @@
  *
  *   // Returns the poster's ID of the `post`.
  *   static queryId: function (post: HTMLElement) -> (nullable)String,
+ *
+ *   // Returns the title of the `post` or returns null if that isn't a thread post.
+ *   static queryThreadTitle: function (post: HTMLElement) -> (nullable)String,
+ *
+ *   // Returns the poster's name of the `post`.
+ *   static queryName: function (post: HTMLElement) -> (nullable)String,
  *
  *   // Returns the body of the `post`.
  *   static queryBody: function (post: HTMLElement) -> (nullable)String,
@@ -65,6 +71,22 @@ if (typeof Komica === 'undefined') {
 
       if (idEl) {
         return idEl.dataset.id || idEl.innerHTML.replace(/^.*ID:/, '');
+      } else {
+        return null;
+      }
+    },
+    queryThreadTitle: function queryThreadTitleKomica(post) {
+      let titleEl = post.querySelector('span.title');
+      if (titleEl) {
+        return titleEl.innerText;
+      } else {
+        return null;
+      }
+    },
+    queryName: function queryNameKomica(post) {
+      let nameEl = post.querySelector('span.name');
+      if (nameEl) {
+        return nameEl.innerText;
       } else {
         return null;
       }
@@ -121,6 +143,22 @@ if (typeof Komica === 'undefined') {
       }
       return null;
     },
+    queryThreadTitle: function queryThreadTitle2Cat(post) {
+      let titleEl = post.querySelector('span.title');
+      if (titleEl) {
+        return titleEl.innerText;
+      } else {
+        return null;
+      }
+    },
+    queryName: function queryName2Cat(post) {
+      let nameEl = post.querySelector('span.name');
+      if (nameEl) {
+        return nameEl.innerText;
+      } else {
+        return null;
+      }
+    },
     queryBody: function queryBody2Cat(post) {
       let bodyEl = post.querySelector('div:first-child .quote');
       if (bodyEl) {
@@ -156,6 +194,12 @@ if (typeof Komica === 'undefined') {
       return null;
     },
     queryId: function queryIdNull(post) {
+      return null;
+    },
+    queryThreadTitle: function queryThreadTitleNull(post) {
+      return null;
+    },
+    queryName: function queryNameNull(post) {
       return null;
     },
     queryBody: function queryBodyNull(post) {
