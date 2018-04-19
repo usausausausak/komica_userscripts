@@ -10,9 +10,9 @@
 // @include      https://komica2.net/*/*
 // @include      http://2cat.cf/*/*/*
 // @include      https://2cat.cf/*/*/*
-// @version      1.8.2
+// @version      1.9.0
 // @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/808e78c9e1bd9c3395b5f0369ee163fe2276241b/libs/komica_host_matcher.js
-// @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/5d6622b02825fe10780c17be8a9db13ce917ee8c/libs/komica_queryer.js
+// @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/71a86be3cf9d727c2e2a74f9689a2529e17fb22f/libs/komica_queryer.js
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -775,7 +775,8 @@
 
     function isContainsNgWord(post) {
         const postBody = QUERYER.queryBody(post) || "";
-        return settings.ngWords.some(word => postBody.includes(word));
+        const threadTitle = QUERYER.queryThreadTitle(post) || "";
+        return settings.ngWords.some(word => ((postBody.includes(word)) || (threadTitle.includes(word))));
     }
 
     // Init and store the meta data of the `post`.
