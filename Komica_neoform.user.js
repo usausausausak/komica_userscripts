@@ -2,25 +2,23 @@
 // @name         Komica neo form
 // @namespace    https://github.com/usausausausak
 // @description  Post form with utils on komica
-// @version      0.2.1
+// @version      0.2.2
 // @require      https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @require      https://github.com/usausausausak/neo/raw/97d8aed71a4bfe65316caead4fb6eea3b048ddc1/neo/dist/PaintBBS-1.2.6.js
 // @resource     paintbbs.css https://github.com/usausausausak/neo/raw/97d8aed71a4bfe65316caead4fb6eea3b048ddc1/neo/dist/PaintBBS-1.2.6.css
-// @include      http://*.komica.org/*/*.htm*
+// @include      https://*.komica.org/*/
 // @include      https://*.komica.org/*/*.htm*
-// @include      http://*.komica2.net/*/*.htm*
-// @include      https://*.komica2.net/*/*.htm*
-// @include      http://*.komica.org/*/pixmicat.php?page_num=*
 // @include      https://*.komica.org/*/pixmicat.php?page_num=*
-// @include      http://*.komica2.net/*/pixmicat.php?page_num=*
-// @include      https://*.komica2.net/*/pixmicat.php?page_num=*
-// @include      http://*.komica.org/*/pixmicat.php?res=*
 // @include      https://*.komica.org/*/pixmicat.php?res=*
-// @include      http://*.komica2.net/*/pixmicat.php?res=*
+// @include      https://*.komica2.net/*/
+// @include      https://*.komica2.net/*/*.htm*
+// @include      https://*.komica2.net/*/pixmicat.php?page_num=*
 // @include      https://*.komica2.net/*/pixmicat.php?res=*
+// @include      https://2cat.cf/*/*/
 // @include      https://2cat.cf/*/*/*.htm*
 // @include      https://2cat.cf/*/*/pixmicat.php?page_num=*
 // @include      https://2cat.cf/*/*/pixmicat.php?res=*
+// @include      http://www.camiko.org/*/
 // @include      http://www.camiko.org/*/*.htm*
 // @include      http://www.camiko.org/*/*.php?page_num=*
 // @include      http://www.camiko.org/*/*.php?res=*
