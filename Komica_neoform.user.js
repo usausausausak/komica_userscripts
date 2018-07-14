@@ -2,7 +2,7 @@
 // @name         Komica neo form
 // @namespace    https://github.com/usausausausak
 // @description  Post form with utils on komica
-// @version      0.1.6
+// @version      0.2.0
 // @require      https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @require      https://github.com/usausausausak/neo/raw/97d8aed71a4bfe65316caead4fb6eea3b048ddc1/neo/dist/PaintBBS-1.2.6.js
 // @resource     paintbbs.css https://github.com/usausausausak/neo/raw/97d8aed71a4bfe65316caead4fb6eea3b048ddc1/neo/dist/PaintBBS-1.2.6.css
@@ -37,7 +37,7 @@
     const SUBMIT_TIMEOUT = 30 * 1000;
 
     const BLANK_IMG =
-        "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=";
+        "data:image/gif;base64, R0lGODlhCgAKAIABAP8AAP///yH5BAEKAAEALAAAAAAKAAoAAAIRjI8HC8msHgxy1mVuy9LNBBYAOw==";
 
     const pngOptions = { mimeType: "image/png", };
     const jpgOptions = { mimeType: "image/jpeg", quality: 0.9 };
@@ -64,24 +64,25 @@
         return button;
     }
 
-    function setBlobImage(blob = null, info = null) {
+    function setUpblob(blob = null, info = null) {
         const upurlField = document.getElementById("neoform-upurl");
-        const image = document.getElementById("neoform-blob-image");
+        const upblob = document.getElementById("neoform-upfile-blob");
 
-        image.blob = blob;
+        upblob.blob = blob;
         if (blob) {
+            const preview = blob.type.match(/^image\//) !== null;
             const size = Math.ceil(blob.size / 1024);
-            image.src = URL.createObjectURL(blob);
-            image.title = `Size: ${size} KiB`;
-            image.style.display = "";
+            upblob.src = (preview) ? URL.createObjectURL(blob): BLANK_IMG;
+            upblob.title = `Size: ${size} KiB`;
+            upblob.style.display = "";
 
             if ((info) && (upurlField)) {
                 upurlField.value = info;
             }
         } else {
-            image.src = BLANK_IMG;
-            image.title = "";
-            image.style.display = "none";
+            upblob.src = BLANK_IMG;
+            upblob.title = "";
+            upblob.style.display = "none";
 
             if (upurlField) {
                 upurlField.value = "";
@@ -99,7 +100,7 @@
             onload: function (ev) {
                 if (ev.status === 200) {
                     console.log(TAG, "Remote image load.");
-                    setBlobImage(ev.response);
+                    setUpblob(ev.response);
                 }
             }
         });
@@ -127,7 +128,7 @@
                     document.querySelector("form input[name=upfile]");
                 upfileField.value = "";
 
-                setBlobImage(blob, "[rendered image]");
+                setUpblob(blob, "[rendered image]");
             }, mimeType, quality);
     }
 
@@ -152,7 +153,7 @@
         if (upfileField.files.length === 0) {
             // no upfile, use upurl's image
             const blobImage =
-                document.getElementById("neoform-blob-image");
+                document.getElementById("neoform-upfile-blob");
             if (!blobImage.blob) {
                 console.log(TAG, "No image.");
                 return;
@@ -168,6 +169,24 @@
 
             renderBlob(file, method, options);
         }
+    }
+
+    function upblobFormUpfile() {
+        const upfileField = document.querySelector("form input[name=upfile]");
+        if (upfileField.files.length === 0) {
+            return;
+        }
+
+        const file = upfileField.files[0];
+        setUpblob(file, "[upblob is ready]");
+
+        upfileField.value = "";
+    }
+
+    function confuseUpblob(blob) {
+        // TODO: use something more sane.
+        const addition = TAG + new Date().toString();
+        return new Blob([blob, addition]);
     }
 
     // modifty submit form
@@ -228,7 +247,7 @@
             setTimeout(dismissMessage, 1000);
 
             form.reset();
-            setBlobImage();
+            setUpblob();
 
             // post is submit, try to get new posts
             window.postMessage( { event: "fetch-new-posts" }, "*");
@@ -248,12 +267,16 @@
         if (textOnly) {
             formData.delete(upfileField.name);
         } else if (upurl !== "") {
-            const image = document.getElementById("neoform-blob-image");
+            const image = document.getElementById("neoform-upfile-blob");
             if ((!image) || (!image.blob)) {
-                showMessage("Something is wrong with image.");
+                showMessage("Something is wrong with upblob.");
                 return;
             }
-            formData.set(upfileField.name, image.blob);
+
+            // Always submit difference blob to spoof same-file-check.
+            const blob = confuseUpblob(image.blob);
+
+            formData.set(upfileField.name, blob);
         } else if (upfileField.files.length === 0) {
             formData.delete(upfileField.name);
         }
@@ -434,19 +457,21 @@
             }
         }, false);
 
-        // preview rendered image
+        // a container for upfile blob and preview rendered image
         const image = new Image();
-        image.id = "neoform-blob-image";
+        image.id = "neoform-upfile-blob";
         image.src = BLANK_IMG;
         image.style.cssText =
             "display: none; border: 1px dotted black; max-width: 1em; max-height: 1em; vertical-align: middle;";
         image.blob = null;
         image.onload = function() {
-            window.URL.revokeObjectURL(image.src);
+            if (image.src !== BLANK_IMG) {
+                window.URL.revokeObjectURL(image.src);
+            }
         }
         image.onerror = function() {
             image.blob = null;
-            if (image.src !== "") {
+            if (image.src !== BLANK_IMG) {
                 window.URL.revokeObjectURL(image.src);
                 //image.src = ""; // will fire onerror persistently
                 image.style.display = "none";
@@ -462,11 +487,19 @@
                 return;
             }
 
-            setBlobImage();
+            setUpblob();
         }, false);
 
-        // image edit buttons
+        // move to buttons cell.
         cell = cell.previousSibling;
+
+        // upfile edit buttons
+        cell.appendChild(document.createElement("br"));
+
+        cell.appendChild(createFunctionButton("Confuse upfile", "b",
+            ev => upblobFormUpfile()));
+
+        // image edit buttons
         cell.appendChild(document.createElement("br"));
 
         cell.appendChild(createFunctionButton("Rerender png", "p",
@@ -542,7 +575,7 @@
         document.paintBBSSubmit = function (board, blob, thumbnail, thumbail2) {
             console.log(TAG, "Submit paint.");
             showPainter(false);
-            setBlobImage(blob, "[from painter]");
+            setUpblob(blob, "[from painter]");
         }
     }
 
