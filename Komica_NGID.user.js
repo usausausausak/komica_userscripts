@@ -10,7 +10,7 @@
 // @include      https://komica2.net/*/*
 // @include      http://2cat.cf/*/*/*
 // @include      https://2cat.cf/*/*/*
-// @version      1.9.0
+// @version      1.9.1
 // @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/808e78c9e1bd9c3395b5f0369ee163fe2276241b/libs/komica_host_matcher.js
 // @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/71a86be3cf9d727c2e2a74f9689a2529e17fb22f/libs/komica_queryer.js
 // @grant        GM_setValue
@@ -416,8 +416,13 @@
                 }, false);
             saveView.appendChild(saveButton);
 
-            root.appendChild(saveView);
-            root.appendChild(textView);
+            // We need a block to fillup the page.
+            const outerBlock = document.createElement("div");
+            outerBlock.style.cssText = 'display: flex; flex-direction: column; height: 100%; width: 100%';
+            outerBlock.appendChild(saveView);
+            outerBlock.appendChild(textView);
+
+            root.appendChild(outerBlock);
         }
 
         function removeItemCb(ev) {
@@ -571,8 +576,6 @@
 }
 
 .ngid-tabbox-page {
-    display: flex;
-    flex-direction: column;
     width: 0;
     opacity: 0;
     overflow-y: scroll;
