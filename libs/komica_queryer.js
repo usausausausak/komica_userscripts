@@ -2,7 +2,7 @@
  * @name         Komica Post Queryer
  * @description  Get a queryer that can query the meta data of posts on board of Komica.
  * @namespace    https://github.com/usausausausak
- * @version      0.3.0
+ * @version      0.4.0
  *
  * function Komica.postQueryer(host: String) -> PostQueryer
  *
@@ -183,6 +183,34 @@ if (typeof Komica === 'undefined') {
     },
   };
 
+  const QUERYERS_GZONE_ANIME = {
+    ...QUERYERS_2CAT,
+    queryId: function queryIdGzoneAnime(post) {
+      const postHeadEl = post.querySelector('span.name').nextSibling;
+      if ((postHeadEl) && (postHeadEl.nodeType === 3)) {
+        const matches = POST_ID_FROM_NOWID_EL_REGEXP.exec(postHeadEl.nodeValue);
+        if (matches) {
+          return matches[1];
+        }
+      }
+      return null;
+    },
+    queryBody: function queryBodyGzoneAnime(post) {
+      let bodyEl = post.querySelector('div:first-child .quote');
+      if (bodyEl) {
+        const body = bodyEl.innerText;
+        let pushPostEl = bodyEl.querySelector('.pushpost');
+        if (pushPostEl) {
+          return body.substr(0, body.length - pushPostEl.innerText.length);
+        } else {
+          return body;
+        }
+      } else {
+        return null;
+      }
+    },
+  };
+
   const NULL_QUERYER = {
     queryThreads: function queryThreadsNull() {
       return [];
@@ -219,6 +247,7 @@ if (typeof Komica === 'undefined') {
   const MAPPER = {
     'komica': QUERYERS_KOMICA,
     '2cat':   QUERYERS_2CAT,
+    'gzone-anime': QUERYERS_GZONE_ANIME,
   };
 
   function postQueryer(host) {
