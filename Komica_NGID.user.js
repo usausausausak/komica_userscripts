@@ -10,9 +10,10 @@
 // @include      https://komica2.net/*/*
 // @include      http://2cat.tk/*/*/*
 // @include      https://2cat.tk/*/*/*
-// @version      1.9.4
-// @require      https://cdn.jsdelivr.net/gh/usausausausak/komica_userscripts@8f92a9ef4555c74997f1949e9ca5ef1f19deb40f/libs/komica_host_matcher.js
-// @require      https://cdn.jsdelivr.net/gh/usausausausak/komica_userscripts@71a86be3cf9d727c2e2a74f9689a2529e17fb22f/libs/komica_queryer.js
+// @include      http://gzone-anime.info/UnitedSites/*
+// @version      1.10.0
+// @require      https://cdn.jsdelivr.net/gh/usausausausak/komica_userscripts@d1b828600159523af9577657c140f5b05317b007/libs/komica_host_matcher.js
+// @require      https://cdn.jsdelivr.net/gh/usausausausak/komica_userscripts@3f8613d530472c5f36847b546c111f1ec486b529/libs/komica_queryer.js
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -27,6 +28,28 @@
     const QUERYER = Komica.postQueryer(HOST_ID);
 
     // We need diffence style at diffence host. (how bad)
+    const STYLE_POLYFILL = `
+#toplink .text-button {
+    cursor: pointer;
+    color: #00E;
+    text-decoration: underline;
+}
+
+#toplink .text-button:hover {
+    color: #D00;
+}
+
+.ngid-context {
+    cursor: pointer;
+    color: #00E;
+    margin-left: 0.2em; /* Nice try! */
+}
+
+.ngid-context .text-button:hover {
+    color: #D00;
+}
+      `;
+
     const HOST_STYLE = {
         'komica': `
 .ngid-context-menu {
@@ -53,25 +76,7 @@
     background-color: #AAEEAA;
 }
 
-#toplink .text-button {
-    cursor: pointer;
-    color: #00E;
-    text-decoration: underline;
-}
-
-#toplink .text-button:hover {
-    color: #D00;
-}
-
-.ngid-context {
-    cursor: pointer;
-    color: #00E;
-    margin-left: 0.2em; /* Nice try! */
-}
-
-.ngid-context .text-button:hover {
-    color: #D00;
-}
+${STYLE_POLYFILL}
 
 /*
  * Since we can't hide the text node, just leave them out.
@@ -92,6 +97,32 @@
 
 .ngid-ngpost > div > a.qlink,
 .ngid-ngimage > div > a.qlink {
+    display: unset;
+}
+        `,
+        'gzone-anime': `
+.ngid-context-menu {
+    background-color: #EEAA88;
+}
+
+${STYLE_POLYFILL}
+
+.ngid-ngpost .quote,
+.ngid-ngpost .title,
+.ngid-ngpost .name,
+.ngid-ngpost .warn_txt2,
+.threadpost.ngid-ngpost > a:not(:last-of-type),
+.reply.ngid-ngpost > div > a:not(:first-of-type) {
+    display: none;
+}
+
+.threadpost.ngid-ngimage > a:not(:last-of-type),
+.reply.ngid-ngimage > div > a:not(:first-of-type) {
+    display: none;
+}
+
+.ngid-ngpost a.qlink,
+.ngid-ngimage a.qlink {
     display: unset;
 }
         `,
@@ -861,7 +892,7 @@
         }
 
         // A workaround for non-structured layout.
-        if (HOST_ID === "2cat") {
+        if ((HOST_ID === "2cat") || (HOST_ID === "gzone-anime")) {
             for (let post of QUERYER.queryThreads()) {
                 const isNgThread = post.classList.contains("ngid-ngpost");
                 let el = post.nextSibling;
