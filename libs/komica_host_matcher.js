@@ -2,12 +2,13 @@
  * @name         Komica Host Matcher
  * @description  Check we are at board of which host
  * @namespace    https://github.com/usausausausak
- * @version      0.1.2
+ * @version      0.2
  *
  * Supported host identitys:
  *   komica.org  => komica
  *   komica2.net => komica
  *   2cat.tk     => 2cat
+ *   gzone-anime.info => gzone-anime
  *
  * // Returns the host id, or returns null while the `location` isn't a supported host.
  * function Komica.hostMatcher(location: Location) -> (nullable)String
@@ -26,6 +27,7 @@ if (typeof Komica === 'undefined') {
   const MATCHER = {
       'komica': /^([^\.]*\.)?komica2?\.(org|net)$/,
       '2cat':   /^2cat\.tk$/,
+      'gzone-anime': /^gzone-anime\.info$/,
   };
 
   function hostMatcher(location) {
