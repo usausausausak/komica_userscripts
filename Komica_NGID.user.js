@@ -10,9 +10,9 @@
 // @include      https://komica2.net/*/*
 // @include      http://2cat.tk/*/*/*
 // @include      https://2cat.tk/*/*/*
-// @version      1.9.3
-// @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/8f92a9ef4555c74997f1949e9ca5ef1f19deb40f/libs/komica_host_matcher.js
-// @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/71a86be3cf9d727c2e2a74f9689a2529e17fb22f/libs/komica_queryer.js
+// @version      1.9.4
+// @require      https://cdn.jsdelivr.net/gh/usausausausak/komica_userscripts@8f92a9ef4555c74997f1949e9ca5ef1f19deb40f/libs/komica_host_matcher.js
+// @require      https://cdn.jsdelivr.net/gh/usausausausak/komica_userscripts@71a86be3cf9d727c2e2a74f9689a2529e17fb22f/libs/komica_queryer.js
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
