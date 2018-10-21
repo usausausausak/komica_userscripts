@@ -8,10 +8,10 @@
 // @include      https://*.komica2.net/*/*
 // @include      http://komica2.net/*/*
 // @include      https://komica2.net/*/*
-// @include      http://2cat.cf/*/*/*
-// @include      https://2cat.cf/*/*/*
-// @version      1.9.2
-// @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/808e78c9e1bd9c3395b5f0369ee163fe2276241b/libs/komica_host_matcher.js
+// @include      http://2cat.tk/*/*/*
+// @include      https://2cat.tk/*/*/*
+// @version      1.9.3
+// @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/8f92a9ef4555c74997f1949e9ca5ef1f19deb40f/libs/komica_host_matcher.js
 // @require      https://cdn.rawgit.com/usausausausak/komica_userscripts/71a86be3cf9d727c2e2a74f9689a2529e17fb22f/libs/komica_queryer.js
 // @grant        GM_setValue
 // @grant        GM_getValue
