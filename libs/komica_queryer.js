@@ -2,7 +2,7 @@
  * @name         Komica Post Queryer
  * @description  Get a queryer that can query the meta data of posts on board of Komica.
  * @namespace    https://github.com/usausausausak
- * @version      0.4.0
+ * @version      0.4.1
  *
  * function Komica.postQueryer(host: String) -> PostQueryer
  *
@@ -49,7 +49,22 @@ if (typeof Komica === 'undefined') {
   'use strict'
 
   const POST_NO_FROM_POST_EL_ID_REGEXP = /^r(\d+)$/;
-  const POST_ID_FROM_NOWID_EL_REGEXP = /ID:(.+)\].*$/;
+
+  const ID_FROM_NOWID_TEXT_REGEXP = /ID:(.+?)(?:\].*)?$/;
+  function idFromNowIdText(nowIdText) {
+    const matches = ID_FROM_NOWID_TEXT_REGEXP.exec(nowIdText);
+    return (matches) ? matches[1] : null;
+  }
+
+  function idWithTailFromNowIdText(nowIdText) {
+    const matches = ID_FROM_NOWID_TEXT_REGEXP.exec(nowIdText);
+    if (!matches) {
+      return null;
+    } else {
+      // Maybe has a id tail code, but we just ignore that.
+      return matches[1].substr(0, 8);
+    }
+  }
 
   const QUERYERS_KOMICA = {
     queryThreads: function queryThreadsKomica() {
@@ -66,13 +81,16 @@ if (typeof Komica === 'undefined') {
       }
     },
     queryId: function queryIdKomica(post) {
-      let idEl = post.querySelector('.post-head .id') ||
-        post.querySelector('.post-head .now');
-
+      const idEl = post.querySelector('.post-head .id');
       if (idEl) {
-        return idEl.dataset.id || idEl.innerHTML.replace(/^.*ID:/, '');
+        return idEl.dataset.id;
       } else {
-        return null;
+        const nowEl = post.querySelector('.post-head .now');
+        if (nowEl) {
+          return idFromNowIdText(nowEl.innerHTML);
+        } else {
+          return null;
+        }
       }
     },
     queryThreadTitle: function queryThreadTitleKomica(post) {
@@ -133,15 +151,10 @@ if (typeof Komica === 'undefined') {
     queryId: function queryId2Cat(post) {
       const postHeadEl = post.querySelector('div:first-child label');
       if (postHeadEl) {
-        const matches = POST_ID_FROM_NOWID_EL_REGEXP.exec(postHeadEl.innerText);
-        if (!matches) {
-          return null;
-        } else if (matches[1].length >= 8) {
-          // Maybe has a id tail code, but we just ignore that.
-          return matches[1].substr(0, 8);
-        }
+        return idWithTailFromNowIdText(postHeadEl.innerText);
+      } else {
+        return null;
       }
-      return null;
     },
     queryThreadTitle: function queryThreadTitle2Cat(post) {
       let titleEl = post.querySelector('span.title');
@@ -188,12 +201,10 @@ if (typeof Komica === 'undefined') {
     queryId: function queryIdGzoneAnime(post) {
       const postHeadEl = post.querySelector('span.name').nextSibling;
       if ((postHeadEl) && (postHeadEl.nodeType === 3)) {
-        const matches = POST_ID_FROM_NOWID_EL_REGEXP.exec(postHeadEl.nodeValue);
-        if (matches) {
-          return matches[1];
-        }
+        return idFromNowIdText(postHeadEl.nodeValue);
+      } else {
+        return null;
       }
-      return null;
     },
     queryBody: function queryBodyGzoneAnime(post) {
       let bodyEl = post.querySelector('div:first-child .quote');
