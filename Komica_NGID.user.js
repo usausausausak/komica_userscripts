@@ -11,9 +11,9 @@
 // @include      http://2cat.tk/*/*/*
 // @include      https://2cat.tk/*/*/*
 // @include      http://gzone-anime.info/UnitedSites/*
-// @version      1.10.0
+// @version      1.10.1
 // @require      https://cdn.jsdelivr.net/gh/usausausausak/komica_userscripts@d1b828600159523af9577657c140f5b05317b007/libs/komica_host_matcher.js
-// @require      https://cdn.jsdelivr.net/gh/usausausausak/komica_userscripts@3f8613d530472c5f36847b546c111f1ec486b529/libs/komica_queryer.js
+// @require      https://cdn.jsdelivr.net/gh/usausausausak/komica_userscripts@b96c0c3df92bf327198115f9ba93090cc5704b23/libs/komica_queryer.js
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
