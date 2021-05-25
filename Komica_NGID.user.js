@@ -11,7 +11,7 @@
 // @include      http://2cat.tk/*/*/*
 // @include      https://2cat.tk/*/*/*
 // @include      http://gzone-anime.info/UnitedSites/*
-// @version      1.10.1
+// @version      1.10.2
 // @require      https://cdn.jsdelivr.net/gh/usausausausak/komica_userscripts@d1b828600159523af9577657c140f5b05317b007/libs/komica_host_matcher.js
 // @require      https://cdn.jsdelivr.net/gh/usausausausak/komica_userscripts@b96c0c3df92bf327198115f9ba93090cc5704b23/libs/komica_queryer.js
 // @grant        GM_setValue
@@ -657,6 +657,18 @@ ${STYLE_POLYFILL}
 .ngid-lineedit-textview {
     flex: 1;
 }
+
+.ngid-listitem span {
+    max-width: 90%;
+    overflow-wrap: break-word;
+}
+
+@media screen and (max-device-width: 600px) {
+    .ngid-dialog {
+      width: calc(100% - 20px);
+      margin: 0 10px;
+    }
+}
         `);
 
         function toggleDialog() {
@@ -732,7 +744,17 @@ ${STYLE_POLYFILL}
         let menu = document.createElement("div");
         menu.className = "ngid-context-menu";
         root.appendChild(menu);
-        root.appendChild(document.createTextNode("NG"));
+
+        const closeButton = document.createElement("button");
+        closeButton.type = "button";
+        closeButton.classList.add("ngid-context-menu-close-button");
+        closeButton.innerHTML = `メニューを閉じる`;
+        closeButton.addEventListener("click", contentMenuCloseButtonCb);
+        menu.appendChild(closeButton);
+
+        const summary = document.createElement("summary");
+        summary.innerHTML = "&nbsp;NG";
+        root.appendChild(summary);
 
         let postType = (isThreadPost) ? "スレ" : "レス";
         if (ngState === "ngword") {
@@ -779,6 +801,10 @@ ${STYLE_POLYFILL}
                 menu.appendChild(ngImageButton);
             }
         }
+    }
+
+    function contentMenuCloseButtonCb() {
+        this.parentElement.parentElement.open = false;
     }
 
     function isNgImage(post) {
@@ -841,14 +867,19 @@ ${STYLE_POLYFILL}
         if (insertPoint) {
             let parent = insertPoint.parentElement;
 
-            let contextMenuRoot = document.createElement("span");
+            let contextMenuRoot = document.createElement("details");
             contextMenuRoot.className = "text-button ngid-context";
+            contextMenuRoot.addEventListener("mouseenter", autoToggleContextMenu);
             parent.insertBefore(contextMenuRoot, insertPoint);
 
             postMeta.contextMenuRoot = contextMenuRoot;
 
             renderContextMenu(post, postMeta, "");
         }
+    }
+
+    function autoToggleContextMenu() {
+        this.open = true;
     }
 
     function updateNgWordState() {
@@ -933,18 +964,20 @@ ${STYLE_POLYFILL}
 }
 
 .ngid-context-menu {
-    display: inline-block;
+    display: inline-flex;
+    flex-direction: column;
     visibility: hidden;
     position: absolute;
     padding: 5px 10px;
     border-radius: 5px;
-    margin-top: -10px;
+    margin-top: calc(-1.7em - 10px);
     transition: margin 100ms;
+    width: max-content;
 }
 
 .ngid-context:hover .ngid-context-menu {
     visibility: visible;
-    margin-top: unset;
+    margin-top: -1.7em;;
 }
 
 .ngid-ngpost .ngid-context-menu {
@@ -953,6 +986,38 @@ ${STYLE_POLYFILL}
 
 .popup_area .ngid-context {
     display: none;
+}
+
+.ngid-context {
+    cursor: pointer;
+    display: inline-block;
+}
+
+.ngid-context summary {
+    list-style: none;
+}
+
+.ngid-context summary::-webkit-details-marker {
+    display: none;
+}
+
+.ngid-context-menu-close-button {
+    text-align: center;
+    display: none;
+}
+
+@media screen and (max-device-width: 600px) {
+    .ngid-context-menu  {
+        visibility: visible;
+        margin: -1.7em 6px 0 6px;
+        width: calc(100% - 32px);
+        left: 0;
+    }
+
+    .ngid-context-menu-close-button {
+        display: unset;
+        align-self: center;
+    }
 }
         `);
 
